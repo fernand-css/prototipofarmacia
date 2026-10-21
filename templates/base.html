@@ -1,0 +1,46 @@
+{% load static %}<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Sistema de Turnos{% endblock %} · Farmacia CESFAM San Nicolás</title>
+  <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+  <script defer src="{% static 'js/alpine.min.js' %}"></script>
+</head>
+<body class="{% block clase_body %}{% endblock %}">
+  <header class="barra">
+    <div class="barra__marca">
+      <span class="barra__titulo">Farmacia CESFAM San Nicolás</span>
+      <span class="barra__subtitulo">Sistema de Turnos</span>
+    </div>
+    {% if user.is_authenticated %}
+      <div class="barra__sesion">
+        <span class="barra__usuario">
+          {{ user.nombre_completo }}
+          <span class="etiqueta">{{ user.get_rol_display }}</span>
+        </span>
+        <form method="post" action="{% url 'cuentas:salir' %}">
+          {% csrf_token %}
+          <button type="submit" class="boton boton--plano">Cerrar sesión</button>
+        </form>
+      </div>
+    {% endif %}
+  </header>
+
+  <main class="contenido">
+    {% if messages %}
+      <ul class="avisos">
+        {% for mensaje in messages %}
+          <li class="aviso aviso--{{ mensaje.tags|default:'info' }}" x-data="{ abierto: true }" x-show="abierto" x-transition.opacity>
+            <span>{{ mensaje }}</span>
+            <button type="button" class="aviso__cerrar" @click="abierto = false" aria-label="Cerrar aviso">&times;</button>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% block contenido %}{% endblock %}
+  </main>
+
+  <footer class="pie">Centro de Salud Familiar San Nicolás</footer>
+</body>
+</html>

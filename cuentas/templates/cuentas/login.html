@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block titulo %}Iniciar sesión{% endblock %}
+
+{% block clase_body %}pagina-login{% endblock %}
+
+{% block contenido %}
+<div class="tarjeta tarjeta--angosta">
+  <h1>Iniciar sesión</h1>
+  <p class="subtitulo">Acceso para funcionarios de la farmacia.</p>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <ul class="avisos">
+        {% for error in form.non_field_errors %}
+          <li class="aviso aviso--error">{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% for campo in form %}
+      {% include "includes/campo.html" %}
+    {% endfor %}
+
+    <button type="submit" class="boton boton--ancho">Entrar</button>
+  </form>
+
+  <p class="ayuda">Puede escribir su RUT con o sin puntos. Si olvidó su contraseña, solicite a la Química Farmacéutica que la restablezca.</p>
+</div>
+{% endblock %}

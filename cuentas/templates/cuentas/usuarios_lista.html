@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block titulo %}Usuarios{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Usuarios</h1>
+    <p class="subtitulo">Cuentas con acceso al sistema de turnos de la farmacia.</p>
+  </div>
+  <a class="boton" href="{% url 'cuentas:usuario_crear' %}">Nuevo funcionario</a>
+</div>
+
+<table class="tabla">
+  <thead>
+    <tr>
+      <th>RUT</th>
+      <th>Nombre</th>
+      <th>Rol</th>
+      <th>Estado</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for usuario in usuarios %}
+      <tr>
+        <td>{{ usuario.rut }}</td>
+        <td>{{ usuario.nombre_completo }}</td>
+        <td>{{ usuario.get_rol_display }}</td>
+        <td>
+          {% if usuario.is_active %}
+            Activo
+          {% else %}
+            <span class="estado--inactivo">Desactivado</span>
+          {% endif %}
+        </td>
+        <td class="acciones">
+          <a class="boton boton--secundario" href="{% url 'cuentas:usuario_editar' usuario.pk %}">Editar</a>
+          <a class="boton boton--secundario" href="{% url 'cuentas:usuario_resetear_password' usuario.pk %}">Restablecer clave</a>
+          <form method="post" action="{% url 'cuentas:usuario_cambiar_estado' usuario.pk %}"
+                {% if usuario.is_active %}x-data @submit="if (!confirm('¿Desactivar la cuenta de {{ usuario.nombre_completo|escapejs }}?')) $event.preventDefault()"{% endif %}>
+            {% csrf_token %}
+            <button type="submit" class="boton boton--secundario">
+              {% if usuario.is_active %}Desactivar{% else %}Activar{% endif %}
+            </button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Todavía no hay cuentas registradas.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

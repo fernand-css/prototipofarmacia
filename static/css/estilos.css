@@ -1,0 +1,232 @@
+:root {
+  /* Paleta fría (azul petróleo): complementaria del naranja de la ilustración del login. */
+  --primario: #0b6b8a;
+  --primario-oscuro: #084e66;
+  --acento: #5bc0de;
+  --gris-fondo: #eef5f8;
+  --gris-borde: #c9dce5;
+  --texto: #102a37;
+  --texto-suave: #4a6372;
+  --rojo: #b3261e;
+  --ambar: #7a5200;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--gris-fondo);
+  color: var(--texto);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Barra superior */
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  background: var(--primario);
+  border-bottom: 4px solid var(--acento);
+  color: #fff;
+}
+
+.barra__marca { display: flex; flex-direction: column; }
+.barra__titulo { font-size: 1.1rem; font-weight: 600; }
+.barra__subtitulo { font-size: 0.85rem; opacity: 0.85; }
+.barra__sesion { display: flex; align-items: center; gap: 1rem; }
+.barra__usuario { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+
+.etiqueta {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Contenido */
+.contenido {
+  flex: 1;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.pie {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--gris-borde);
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Pantalla de inicio de sesión */
+.pagina-login {
+  background: #f9e6a8 url("../img/fondo-login.png") center bottom / cover no-repeat fixed;
+}
+
+.pagina-login .contenido {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagina-login .tarjeta {
+  width: 100%;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 28px rgba(8, 50, 70, 0.3);
+}
+
+/* Campo de contraseña con botón mostrar/ocultar */
+.campo__clave { position: relative; }
+.campo__clave input { padding-right: 4.8rem; }
+
+.campo__ver {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  padding: 0.2rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--primario-oscuro);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.campo__ver:hover { background: var(--gris-fondo); }
+
+/* Avisos descartables */
+.aviso { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
+
+.aviso__cerrar {
+  padding: 0 0.3rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pagina-login .pie {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Tarjetas y formularios */
+.tarjeta {
+  padding: 2rem;
+  border: 1px solid var(--gris-borde);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.tarjeta--angosta { max-width: 420px; margin: 2rem auto; }
+
+h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+h2 { margin: 0 0 1rem; font-size: 1.15rem; }
+.subtitulo { margin: 0 0 1.5rem; color: var(--texto-suave); }
+
+.campo { margin-bottom: 1.1rem; }
+.campo label { display: block; margin-bottom: 0.3rem; font-weight: 600; font-size: 0.9rem; }
+
+.campo input, .campo select {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+  color: var(--texto);
+}
+
+.campo input:focus, .campo select:focus {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+  border-color: var(--primario);
+}
+
+.ayuda { margin-top: 0.3rem; color: var(--texto-suave); font-size: 0.82rem; }
+.error { margin-top: 0.3rem; color: var(--rojo); font-size: 0.85rem; }
+
+/* Botones */
+.boton {
+  padding: 0.6rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--primario);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.boton:hover { background: var(--primario-oscuro); }
+.boton--ancho { width: 100%; }
+
+.boton--secundario {
+  background: #fff;
+  color: var(--primario-oscuro);
+  border-color: var(--gris-borde);
+}
+
+.boton--secundario:hover { background: var(--gris-fondo); }
+
+.boton--plano {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.boton--plano:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* Avisos */
+.avisos { margin: 0 0 1.5rem; padding: 0; list-style: none; }
+
+.aviso {
+  margin-bottom: 0.6rem;
+  padding: 0.7rem 1rem;
+  border-left: 4px solid var(--primario);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.92rem;
+}
+
+.aviso--error { border-left-color: var(--rojo); color: var(--rojo); }
+.aviso--warning { border-left-color: var(--ambar); color: var(--ambar); }
+
+/* Tablas */
+.tabla { width: 100%; border-collapse: collapse; background: #fff; }
+.tabla th, .tabla td { padding: 0.7rem 0.8rem; border-bottom: 1px solid var(--gris-borde); text-align: left; }
+.tabla th { background: var(--gris-fondo); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.tabla tr:last-child td { border-bottom: none; }
+
+.estado--inactivo { color: var(--texto-suave); }
+
+.encabezado-seccion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.acciones { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.acciones .boton { padding: 0.35rem 0.7rem; font-size: 0.82rem; text-decoration: none; }

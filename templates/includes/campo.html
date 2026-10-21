@@ -1,0 +1,15 @@
+<div class="campo">
+  {{ campo.label_tag }}
+  {% if campo.field.widget.input_type == "password" %}
+    <div class="campo__clave" x-data="{ ver: false }" x-effect="$refs.caja.querySelector('input').type = ver ? 'text' : 'password'" x-ref="caja">
+      {{ campo }}
+      <button type="button" class="campo__ver" @click="ver = !ver" :aria-pressed="ver" x-text="ver ? 'Ocultar' : 'Mostrar'">Mostrar</button>
+    </div>
+  {% else %}
+    {{ campo }}
+  {% endif %}
+  {% if campo.help_text %}<div class="ayuda">{{ campo.help_text|safe }}</div>{% endif %}
+  {% for error in campo.errors %}
+    <p class="error">{{ error }}</p>
+  {% endfor %}
+</div>

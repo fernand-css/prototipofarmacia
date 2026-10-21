@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block titulo %}Panel de atención{% endblock %}
+
+{% block contenido %}
+<div class="tarjeta">
+  <h1>Hola, {{ user.nombres }}</h1>
+  <p class="subtitulo">Sesión iniciada como <strong>{{ user.nombre_completo }}</strong>, RUT {{ user.rut }}.</p>
+
+  <h2>Panel de atención</h2>
+  <p>Desde aquí podrá llamar al siguiente paciente de la fila de farmacia. Esa función llega en un spec posterior, junto con la emisión de tickets y la pantalla de sala de espera.</p>
+</div>
+{% endblock %}

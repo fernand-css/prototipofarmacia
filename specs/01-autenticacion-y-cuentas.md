@@ -23,7 +23,7 @@ El ámbito se acota a la farmacia del CESFAM San Nicolás, no al recinto complet
 
 - Proyecto Django `farmacia_turnos` con app `cuentas`, base SQLite y `requirements.txt`.
 - Modelo `Usuario` propio, con el RUT como credencial de acceso en lugar de `username`.
-- Dos roles: `QF` (administradora) y `FUNCIONARIO`.
+- Tres roles: `QF` (administradora), `FUNCIONARIO` y `ENCARGADO_TERRENO`.
 - Validación de RUT con dígito verificador y normalización a un formato único de almacenamiento.
 - Vistas de inicio y cierre de sesión con plantillas Django y CSS propio.
 - Redirección posterior al login según el rol.
@@ -40,6 +40,7 @@ El ámbito se acota a la farmacia del CESFAM San Nicolás, no al recinto complet
 - Cuentas para pacientes. La emisión de tickets y la pantalla quedan públicas, sin login.
 - Recuperación de contraseña por correo electrónico. La recuperación la ejecuta la QF.
 - Registro de `Usuario` en el admin de Django como interfaz de gestión.
+- Permisos propios del Encargado de Terreno. En este spec tiene la misma página de inicio que el funcionario y no administra cuentas; sus funciones se definen en el spec que las necesite.
 - Roles adicionales (técnico de farmacia, auxiliar, visor de pantalla).
 - Migración a PostgreSQL y despliegue.
 
@@ -53,6 +54,7 @@ Archivo `cuentas/models.py`:
 class Rol(models.TextChoices):
     QF = "qf", "Química Farmacéutica"
     FUNCIONARIO = "funcionario", "Funcionario"
+    ENCARGADO_TERRENO = "encargado_terreno", "Encargado de Terreno"
 
 
 class Usuario(AbstractBaseUser, PermissionsMixin):
@@ -94,7 +96,7 @@ class IntentoFallido(models.Model):
 4. Escribir `Usuario`, `Rol` y `UsuarioManager` en `cuentas/models.py`. `create_superuser` fuerza `rol=Rol.QF` y `debe_cambiar_password=False`. Declarar `AUTH_USER_MODEL = "cuentas.Usuario"` en settings. Ejecutar `makemigrations cuentas` y `migrate`. **Verificación:** `python manage.py createsuperuser` crea la cuenta de la QF pidiendo el RUT.
 5. Crear `templates/base.html` con la estructura común y `static/css/estilos.css` con los estilos del sistema. Configurar `STATICFILES_DIRS` y el directorio `templates` en settings. **Verificación:** una vista de prueba que extiende `base.html` renderiza con los estilos aplicados.
 6. Implementar el inicio y cierre de sesión: `LoginRutForm` en `cuentas/forms.py` que normaliza y valida el RUT, la plantilla `cuentas/login.html`, y las rutas `/` y `/salir/` en `cuentas/urls.py`. Configurar `LOGIN_URL`, `LOGIN_REDIRECT_URL` y `LOGOUT_REDIRECT_URL`. **Verificación:** la QF entra con su RUT en cualquier formato y sale con el enlace de cierre.
-7. Implementar la vista `inicio`, que redirige a la gestión de usuarios si el rol es `QF` y al panel del funcionario en caso contrario. Crear la plantilla `cuentas/panel_funcionario.html` como marcador de posición, con el nombre de quien inició sesión y el aviso de que el panel de atención llega en un spec posterior. **Verificación:** cada rol aterriza en su página tras el login.
+7. Implementar la vista `inicio`, que redirige a la gestión de usuarios si el rol es `QF` y al panel del funcionario en caso contrario (funcionario y encargado de terreno). Crear la plantilla `cuentas/panel_funcionario.html` como marcador de posición, con el nombre de quien inició sesión y el aviso de que el panel de atención llega en un spec posterior. **Verificación:** cada rol aterriza en su página tras el login.
 8. Implementar el cambio de contraseña obligatorio: vista `cambiar_password` y middleware `CambioPasswordObligatorio`, que redirige a esa vista mientras `debe_cambiar_password` sea `True`, dejando pasar el cierre de sesión y los archivos estáticos. Al guardar, el campo pasa a `False`. **Verificación:** una cuenta nueva no puede navegar a ninguna otra página hasta cambiar su clave.
 9. Implementar el mixin `SoloQF`, que devuelve 403 a quien no tenga rol `QF`, y la vista `usuarios_lista` con la tabla de funcionarios y su estado. **Verificación:** un funcionario que abre la URL de la lista recibe 403; la QF ve el listado.
 10. Implementar `usuario_crear` con `UsuarioCrearForm`: RUT, nombres, apellidos, rol y contraseña inicial. La cuenta nace con `debe_cambiar_password=True`. **Verificación:** la QF crea un funcionario, cierra sesión, entra con esa cuenta y el sistema le exige cambiar la clave.
@@ -114,6 +116,7 @@ class IntentoFallido(models.Model):
 - [ ] La QF, tras iniciar sesión, aterriza en el listado de usuarios.
 - [ ] El funcionario, tras iniciar sesión, aterriza en su página de inicio y ve su nombre.
 - [ ] Un funcionario que abre la URL de gestión de usuarios recibe 403.
+- [ ] La QF puede crear y editar cuentas con el rol Encargado de Terreno; esa cuenta aterriza en la página de inicio del funcionario y recibe 403 en la gestión de usuarios.
 - [ ] Una cuenta recién creada por la QF es redirigida al cambio de contraseña en cualquier URL que visite.
 - [ ] Tras cambiar la contraseña, esa cuenta navega con normalidad y no vuelve a ser redirigida.
 - [ ] Una cuenta desactivada por la QF recibe error al iniciar sesión y sigue apareciendo en el listado.
@@ -139,6 +142,7 @@ class IntentoFallido(models.Model):
 - **Sí:** el admin de Django queda solo como acceso técnico del desarrollador. La interfaz de la QF es una vista propia, en español y sin modelos internos a la vista.
 - **Sí:** la primera cuenta QF se crea con `manage.py createsuperuser`. Resuelve el arranque sin necesitar una pantalla de registro pública.
 - **Sí:** plantillas Django con CSS propio. Es lo que declara el README y no depende de un CDN externo, que en una red restringida de CESFAM podría no cargar.
+- **Sí:** Encargado de Terreno como rol propio y no como un funcionario con una marca. Sus funciones difieren de las del mesón, y separarlo ahora evita migrar datos de usuarios cuando se definan. Mientras tanto no tiene permisos distintos a los del funcionario.
 - **Sí:** proyecto `farmacia_turnos`. Nombra el dominio realmente acotado y deja espacio limpio para una futura app `turnos`.
 
 ---
@@ -162,7 +166,7 @@ class IntentoFallido(models.Model):
 - Pantalla de sala de espera.
 - Cuentas de pacientes.
 - Recuperación de contraseña por correo.
-- Roles más allá de QF y funcionario.
+- Roles más allá de QF, funcionario y encargado de terreno.
 - PostgreSQL y despliegue.
 
 Cada uno de esos, si se hace, va en su propio spec.
