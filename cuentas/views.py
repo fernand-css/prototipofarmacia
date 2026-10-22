@@ -15,7 +15,14 @@ from cuentas.forms import (
     UsuarioEditarForm,
 )
 from cuentas.mixins import SoloQF
-from cuentas.models import Usuario
+from cuentas.models import Rol, Usuario
+
+# Orden y nombre de los grupos del listado de usuarios.
+GRUPOS_DE_USUARIOS = [
+    (Rol.QF, "Química Farmacéutica"),
+    (Rol.FUNCIONARIO, "Funcionarios de farmacia"),
+    (Rol.ENCARGADO_TERRENO, "Encargados de terreno"),
+]
 
 
 class EntrarView(LoginView):
@@ -28,6 +35,8 @@ class EntrarView(LoginView):
 def inicio(request):
     if request.user.es_qf:
         return redirect("cuentas:usuarios")
+    if request.user.puede_atender:
+        return redirect("turnos:atencion")
     return redirect("cuentas:panel_funcionario")
 
 
@@ -53,9 +62,21 @@ def cambiar_password(request):
 
 
 class UsuariosListaView(SoloQF, ListView):
+    """Las cuentas activas agrupadas por rol y, al final, las desactivadas (siguen en el listado)."""
+
     model = Usuario
     template_name = "cuentas/usuarios_lista.html"
     context_object_name = "usuarios"
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        usuarios = list(contexto["usuarios"])
+        contexto["grupos"] = [
+            {"nombre": nombre, "usuarios": [u for u in usuarios if u.is_active and u.rol == rol]}
+            for rol, nombre in GRUPOS_DE_USUARIOS
+        ]
+        contexto["desactivadas"] = [u for u in usuarios if not u.is_active]
+        return contexto
 
 
 class UsuarioCrearView(SoloQF, CreateView):

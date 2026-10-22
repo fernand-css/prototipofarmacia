@@ -1,16 +1,60 @@
-:root {
-  /* Paleta fría (azul petróleo): complementaria del naranja de la ilustración del login. */
-  --primario: #0b6b8a;
-  --primario-oscuro: #084e66;
-  --acento: #5bc0de;
-  --gris-fondo: #eef5f8;
-  --gris-borde: #c9dce5;
-  --texto: #102a37;
-  --texto-suave: #4a6372;
-  --rojo: #b3261e;
-  --ambar: #7a5200;
+/* =====================================================================
+   Sistema de turnos de la farmacia del CESFAM San Nicolás
+
+   Idea: el sistema reemplaza los rollos de papel numerados, así que el
+   protagonista es el número de turno. Se escribe siempre igual (letra y
+   número en extranegrita) y tiene forma de ticket solo donde el paciente
+   lo recibe y donde el funcionario lo atiende. El amarillo "papel de
+   turno" significa "es su turno" y no se usa para nada más.
+
+   Índice
+    1. Fuente y variables    8. Insignias
+    2. Base                  9. Avisos
+    3. Barra superior       10. Tablas y listas
+    4. Contenido y pie      11. Inicio de sesión
+    5. Tarjetas             12. Panel de atención
+    6. Formularios          13. Fila de espera
+    7. Botones              14. Tótem y ticket
+   ===================================================================== */
+
+/* 1 · Fuente y variables
+   Atkinson Hyperlegible Next: diseñada para lectores con baja visión (1, l, I
+   y 0, O inconfundibles). Autoalojada porque el CESFAM puede estar sin internet.
+   Licencia OFL en static/fonts/. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("../fonts/atkinson-hyperlegible-next-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+:root {
+  /* Ancla: verde petróleo. Contrasta con la ilustración naranja del login y con el amarillo del
+     ticket; el blanco sobre el primario da 5,2:1. */
+  --primario: #1b7a6b;
+  --primario-oscuro: #125449;
+  --primario-claro: #e6f4f2;
+  --acento: #69d3c2;
+  --gris-fondo: #eef6f4;
+  --gris-borde: #c7dbd7;
+  --borde-campo: #75948d; /* 3,3:1 sobre blanco: el borde de un campo se distingue */
+  --texto: #0f2b27;
+  --texto-suave: #4a6661;
+  /* Papel de turno: el ticket, el turno llamado y el siguiente en la fila. Nada más. */
+  --papel: #ffd84d;
+  --papel-claro: #fff3c4;
+  --papel-borde: #8a6a00;
+  /* Rojo y ámbar solo para urgencias, errores y advertencias. */
+  --rojo: #b3261e;
+  --rojo-claro: #fbe9e7;
+  --ambar: #7a5200;
+  --ambar-claro: #fff3d6;
+  --fuente: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+}
+
+/* 2 · Base */
 * { box-sizing: border-box; }
 
 body {
@@ -20,40 +64,78 @@ body {
   flex-direction: column;
   background: var(--gris-fondo);
   color: var(--texto);
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--fuente);
   font-size: 16px;
   line-height: 1.5;
 }
 
-/* Barra superior */
+/* Escala: 14 · 16 · 18 · 21 · 24 · 36 · 48 · 72 · 96 px. */
+h1 { margin: 0 0 0.5rem; font-size: 2.25rem; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; }
+h2 { margin: 0 0 1rem; font-size: 1.3125rem; font-weight: 700; line-height: 1.25; }
+h3 { font-size: 1rem; font-weight: 700; }
+a { color: var(--primario-oscuro); }
+.subtitulo { margin: 0 0 1.5rem; color: var(--texto-suave); font-size: 1.125rem; }
+
+/* El foco del teclado siempre se ve: el panel se usa todo el día. */
+:focus-visible { outline: 3px solid var(--primario); outline-offset: 2px; }
+
+/* Texto solo para lectores de pantalla. */
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* 3 · Barra superior */
 .barra {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.6rem 1rem;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem 1.5rem;
-  background: var(--primario);
-  border-bottom: 4px solid var(--acento);
+  padding: 0.85rem 1.5rem;
+  background: var(--primario-oscuro);
+  border-bottom: 3px solid var(--acento);
   color: #fff;
 }
 
-.barra__marca { display: flex; flex-direction: column; }
-.barra__titulo { font-size: 1.1rem; font-weight: 600; }
-.barra__subtitulo { font-size: 0.85rem; opacity: 0.85; }
+.barra :focus-visible { outline-color: #fff; }
+.barra__marca { display: flex; flex-direction: column; line-height: 1.25; }
+.barra__titulo { font-size: 1.125rem; font-weight: 700; }
+.barra__subtitulo { font-size: 0.875rem; opacity: 0.85; }
 .barra__sesion { display: flex; align-items: center; gap: 1rem; }
-.barra__usuario { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+.barra__usuario { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9375rem; }
 
-.etiqueta {
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+.barra__nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.4rem; flex: 1; margin-left: 1.5rem; }
+
+.barra__nav a {
+  padding: 0.2rem 0;
+  border-bottom: 3px solid transparent;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
 }
 
-/* Contenido */
+.barra__nav a:hover, .barra__nav a[aria-current="page"] { border-bottom-color: var(--acento); }
+
+@media (max-width: 720px) {
+  .barra__nav { order: 3; flex-basis: 100%; margin-left: 0; }
+  .barra__sesion { flex-basis: 100%; justify-content: space-between; }
+}
+
+/* El rol de quien inició sesión, junto a su nombre. */
+.etiqueta {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* 4 · Contenido y pie */
 .contenido {
   flex: 1;
   width: 100%;
@@ -62,162 +144,33 @@ body {
   padding: 2rem 1.5rem;
 }
 
+/* Páginas que necesitan más ancho (el panel muestra turno y fila lado a lado). */
+.contenido--ancho { max-width: 1200px; }
+
+@media (max-width: 600px) {
+  .contenido { padding: 1.5rem 1rem; }
+}
+
 .pie {
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--gris-borde);
   color: var(--texto-suave);
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 
-/* Pantalla de inicio de sesión */
-.pagina-login {
-  background: #f9e6a8 url("../img/fondo-login.png") center bottom / cover no-repeat fixed;
-}
-
-.pagina-login .contenido {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pagina-login .tarjeta {
-  width: 100%;
-  margin: 0;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 28px rgba(8, 50, 70, 0.3);
-}
-
-/* Campo de contraseña con botón mostrar/ocultar */
-.campo__clave { position: relative; }
-.campo__clave input { padding-right: 4.8rem; }
-
-.campo__ver {
-  position: absolute;
-  top: 50%;
-  right: 0.4rem;
-  transform: translateY(-50%);
-  padding: 0.2rem 0.5rem;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--primario-oscuro);
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.campo__ver:hover { background: var(--gris-fondo); }
-
-/* Avisos descartables */
-.aviso { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
-
-.aviso__cerrar {
-  padding: 0 0.3rem;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: 1.2rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.pagina-login .pie {
-  background: rgba(255, 255, 255, 0.85);
-}
-
-/* Tarjetas y formularios */
+/* 5 · Tarjetas */
 .tarjeta {
   padding: 2rem;
   border: 1px solid var(--gris-borde);
-  border-radius: 10px;
-  background: #fff;
-}
-
-.tarjeta--angosta { max-width: 420px; margin: 2rem auto; }
-
-h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
-h2 { margin: 0 0 1rem; font-size: 1.15rem; }
-.subtitulo { margin: 0 0 1.5rem; color: var(--texto-suave); }
-
-.campo { margin-bottom: 1.1rem; }
-.campo label { display: block; margin-bottom: 0.3rem; font-weight: 600; font-size: 0.9rem; }
-
-.campo input, .campo select {
-  width: 100%;
-  padding: 0.6rem 0.7rem;
-  border: 1px solid var(--gris-borde);
   border-radius: 6px;
-  font: inherit;
   background: #fff;
-  color: var(--texto);
 }
 
-.campo input:focus, .campo select:focus {
-  outline: 2px solid var(--primario);
-  outline-offset: 1px;
-  border-color: var(--primario);
-}
+.tarjeta--angosta { max-width: 440px; margin: 2rem auto; }
 
-.ayuda { margin-top: 0.3rem; color: var(--texto-suave); font-size: 0.82rem; }
-.error { margin-top: 0.3rem; color: var(--rojo); font-size: 0.85rem; }
-
-/* Botones */
-.boton {
-  padding: 0.6rem 1.1rem;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: var(--primario);
-  color: #fff;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.boton:hover { background: var(--primario-oscuro); }
-.boton--ancho { width: 100%; }
-
-.boton--secundario {
-  background: #fff;
-  color: var(--primario-oscuro);
-  border-color: var(--gris-borde);
-}
-
-.boton--secundario:hover { background: var(--gris-fondo); }
-
-.boton--plano {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.5);
-  color: #fff;
-  padding: 0.35rem 0.8rem;
-  font-size: 0.85rem;
-}
-
-.boton--plano:hover { background: rgba(255, 255, 255, 0.15); }
-
-/* Avisos */
-.avisos { margin: 0 0 1.5rem; padding: 0; list-style: none; }
-
-.aviso {
-  margin-bottom: 0.6rem;
-  padding: 0.7rem 1rem;
-  border-left: 4px solid var(--primario);
-  border-radius: 4px;
-  background: #fff;
-  font-size: 0.92rem;
-}
-
-.aviso--error { border-left-color: var(--rojo); color: var(--rojo); }
-.aviso--warning { border-left-color: var(--ambar); color: var(--ambar); }
-
-/* Tablas */
-.tabla { width: 100%; border-collapse: collapse; background: #fff; }
-.tabla th, .tabla td { padding: 0.7rem 0.8rem; border-bottom: 1px solid var(--gris-borde); text-align: left; }
-.tabla th { background: var(--gris-fondo); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
-.tabla tr:last-child td { border-bottom: none; }
-
-.estado--inactivo { color: var(--texto-suave); }
+/* Apila hijos con una separación pareja. */
+.pila { display: grid; gap: 1.25rem; }
 
 .encabezado-seccion {
   display: flex;
@@ -225,8 +178,900 @@ h2 { margin: 0 0 1rem; font-size: 1.15rem; }
   gap: 1rem;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
+.encabezado-seccion h1, .encabezado-seccion .subtitulo { margin-bottom: 0; }
+
+/* Bloque plegable (<details>). */
+.desplegable { padding: 0; }
+
+.desplegable > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.desplegable > summary::-webkit-details-marker { display: none; }
+.desplegable > summary::after { content: "+"; color: var(--primario); font-size: 1.5rem; font-weight: 400; line-height: 1; }
+.desplegable[open] > summary::after { content: "\2013"; }
+.desplegable__cuerpo { padding: 0 1.5rem 1.5rem; }
+.desplegable__cuerpo .subtitulo { margin-bottom: 1rem; font-size: 1rem; }
+
+/* 6 · Formularios */
+.campo { margin-bottom: 1.1rem; }
+.campo label { display: block; margin-bottom: 0.35rem; font-size: 0.9375rem; font-weight: 700; }
+
+.campo input, .campo select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid var(--borde-campo);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+  color: var(--texto);
+}
+
+.campo input:focus, .campo select:focus {
+  outline: 3px solid var(--primario);
+  outline-offset: 1px;
+  border-color: var(--primario);
+}
+
+.ayuda { margin-top: 0.35rem; color: var(--texto-suave); font-size: 0.875rem; }
+.error { margin-top: 0.35rem; color: var(--rojo); font-size: 0.875rem; font-weight: 600; }
+
+/* Campo de contraseña con botón mostrar/ocultar */
+.campo__clave { position: relative; }
+.campo__clave input { padding-right: 5.2rem; }
+
+.campo__ver {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  padding: 0.25rem 0.55rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--primario-oscuro);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.campo__ver:hover { background: var(--gris-fondo); }
+
+.formulario-en-linea { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: flex-end; }
+.formulario-en-linea .campo { flex: 1 1 14rem; margin-bottom: 0; }
+
+/* 7 · Botones */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.1rem;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--primario);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.boton:hover { background: var(--primario-oscuro); }
+.boton:disabled { opacity: 0.5; cursor: not-allowed; }
+.boton:disabled:hover { background: var(--primario); }
+.boton--ancho { width: 100%; }
+
+.boton--secundario {
+  background: #fff;
+  color: var(--primario-oscuro);
+  border-color: var(--primario);
+}
+
+.boton--secundario:hover, .boton--secundario:disabled:hover { background: var(--primario-claro); }
+
+/* Acción que no se puede deshacer (marcar ausente). */
+.boton--peligro {
+  background: #fff;
+  color: var(--rojo);
+  border-color: var(--rojo);
+}
+
+.boton--peligro:hover, .boton--peligro:disabled:hover { background: var(--rojo-claro); }
+
+/* La acción destructiva dentro del modal de confirmación: ya se eligió, va llena. */
+.boton--rojo { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+.boton--rojo:hover { background: #8e1d17; }
+
+/* Acciones de una fila de lista: sin borde, para que no compitan con los nombres. */
+.boton--texto {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.65rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--primario-oscuro);
+}
+
+.boton--texto:hover { background: var(--primario-claro); }
+.boton--texto-peligro { color: var(--rojo); }
+.boton--texto-peligro:hover { background: var(--rojo-claro); }
+
+/* Acción frecuente del panel: el funcionario la usa cientos de veces al día. */
+.boton--grande { min-height: 3.25rem; padding: 0.65rem 1.35rem; font-size: 1.125rem; }
+
+.boton--plano {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.85rem;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #fff;
+  font-size: 0.875rem;
+}
+
+.boton--plano:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* Botones compactos de las tablas. */
 .acciones { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.acciones .boton { padding: 0.35rem 0.7rem; font-size: 0.82rem; text-decoration: none; }
+.acciones .boton { min-height: 2.25rem; padding: 0.3rem 0.75rem; font-size: 0.875rem; }
+
+/* 8 · Insignias
+   Los modificadores usan los valores de Categoria y EstadoTurno (turnos/models.py). El texto
+   siempre dice lo mismo que el color: nunca se confía solo en el color. */
+.insignia {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.65rem;
+  border: 1.5px solid var(--gris-borde);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--texto);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.insignia--urgencia { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+.insignia--preferencial { background: var(--primario-oscuro); border-color: var(--primario-oscuro); color: #fff; }
+.insignia--general { border-color: var(--primario); color: var(--primario-oscuro); }
+.insignia--llamado { background: var(--texto); border-color: var(--texto); color: var(--papel); }
+.insignia--en_atencion { background: var(--primario); border-color: var(--primario); color: #fff; }
+.insignia--activa { background: var(--primario-claro); border-color: var(--primario); color: var(--primario-oscuro); }
+.insignia--inactiva { background: var(--gris-fondo); color: var(--texto-suave); }
+.insignia--cronico { border-style: dashed; border-color: var(--primario-oscuro); color: var(--primario-oscuro); }
+
+/* 9 · Avisos */
+.avisos { margin: 0 0 1.5rem; padding: 0; list-style: none; }
+
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-left: 5px solid var(--primario);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.9375rem;
+}
+
+.aviso--error { border-left-color: var(--rojo); color: var(--rojo); }
+.aviso--warning { border-left-color: var(--ambar); color: var(--ambar); }
+
+.aviso__cerrar {
+  padding: 0 0.3rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Modal de confirmación (templates/includes/confirmacion.html). Lo primero que se lee es el
+   objeto de la acción en grande (el turno, la ventanilla, la persona), para no equivocarse. */
+.modal {
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--texto);
+  box-shadow: 0 24px 60px rgba(3, 30, 26, 0.45);
+}
+
+.modal::backdrop { background: rgba(9, 40, 35, 0.6); }
+
+/* El modal responde a un clic: aparece con un movimiento corto que muestra de dónde viene. */
+.modal[open] { animation: modal-aparece 0.16s ease-out; }
+
+@keyframes modal-aparece {
+  from { opacity: 0; transform: translateY(0.5rem) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.modal__hoja { padding: 1.75rem; }
+
+.modal__objeto {
+  margin: 0 0 0.75rem;
+  font-size: 2.25rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+/* Un turno se muestra como en el panel: sobre papel amarillo. */
+.modal__objeto--turno {
+  display: inline-block;
+  padding: 0.1em 0.4em;
+  border: 2px solid var(--papel-borde);
+  border-radius: 10px;
+  background: var(--papel);
+}
+
+.modal__titulo { margin: 0 0 0.5rem; font-size: 1.3125rem; }
+.modal__texto { margin: 0 0 1.75rem; color: var(--texto-suave); font-size: 1.0625rem; }
+.modal__acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.75rem; }
+
+@media (max-width: 480px) {
+  .modal__acciones .boton { flex: 1 1 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal[open] { animation: none; }
+}
+
+/* 10 · Tablas y listas */
+.tabla { width: 100%; border-collapse: collapse; background: #fff; }
+.tabla th, .tabla td { padding: 0.75rem 0.85rem; border-bottom: 1px solid var(--gris-borde); text-align: left; }
+.tabla th { background: var(--gris-fondo); color: var(--texto-suave); font-size: 0.875rem; font-weight: 700; }
+.tabla tr:last-child td { border-bottom: none; }
+
+/* La celda de acciones sigue siendo una celda: sus botones van en línea, no en un flex. */
+.tabla td.acciones { display: table-cell; }
+.tabla td.acciones > * { display: inline-block; margin: 0.15rem 0.4rem 0.15rem 0; vertical-align: middle; }
+
+/* En pantallas angostas la tabla se desplaza dentro de su contenedor en vez de ensanchar la página. */
+.tabla-contenedor { overflow-x: auto; border: 1px solid var(--gris-borde); border-radius: 6px; }
+
+.estado--inactivo { color: var(--texto-suave); }
+
+/* Listas de administración (usuarios, ventanillas): una hoja por grupo y una fila por persona o
+   puesto, con los datos a la izquierda y las acciones a la derecha. Cada acción tiene su columna
+   fija, así queda a la misma altura en todas las filas aunque a alguna le falte una acción. */
+.grupo { margin-bottom: 2.25rem; }
+
+.grupo__titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
+  font-size: 1.125rem;
+}
+
+.grupo__cuenta { color: var(--texto-suave); font-weight: 600; font-variant-numeric: tabular-nums; }
+.grupo__nota { margin: -0.25rem 0 0.75rem; color: var(--texto-suave); font-size: 0.9375rem; }
+
+.lista {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  background: #fff;
+  list-style: none;
+}
+
+.lista__fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--gris-borde);
+}
+
+/* Usuarios: Editar, Restablecer clave y Desactivar/Activar, siempre en ese lugar. */
+.lista--usuarios .lista__fila { grid-template-columns: minmax(0, 1fr) 5.5rem 10.5rem 7rem; }
+.lista--usuarios .lista__acciones { display: contents; }
+.lista--usuarios .lista__accion--estado { grid-column: 4; }
+
+/* Ventanillas: una sola acción, del ancho de la más larga ("Deshabilitar"). */
+.lista--ventanillas .lista__fila { grid-template-columns: minmax(0, 1fr) 8rem; }
+
+.lista__fila:last-child { border-bottom: none; }
+.lista__datos { min-width: 0; }
+
+.lista__nombre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.lista__detalle { margin: 0.1rem 0 0; color: var(--texto-suave); font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
+.lista__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+.lista__acciones form, .lista__fila > form { margin: 0; }
+.lista__fila > a, .lista__fila > form, .lista__acciones > * { justify-self: start; }
+.lista__vacia { color: var(--texto-suave); }
+
+/* Lo que está fuera de servicio se lee en segundo plano. */
+.grupo--apagado .lista__nombre, .lista__fila--apagada .lista__nombre { color: var(--texto-suave); }
+
+/* En pantallas angostas las acciones pasan bajo los datos, alineadas con el nombre. */
+@media (max-width: 600px) {
+  .lista__fila, .lista--usuarios .lista__fila { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.85rem 1rem; }
+  .lista__datos { width: 100%; }
+  .lista__acciones, .lista--usuarios .lista__acciones { display: flex; width: 100%; gap: 0; margin-left: -0.4rem; }
+  .lista__acciones .boton--texto { padding: 0.3rem 0.4rem; font-size: 0.9375rem; }
+}
+
+/* 11 · Inicio de sesión
+   El paciente recibe un ticket; el funcionario tiene su credencial. El inicio de sesión es la
+   credencial del personal colgando de su cinta sobre la ilustración del CESFAM. Al cargar cae y
+   se balancea hasta quedar quieta: el único movimiento de esta página. */
+.pagina-login {
+  overflow-x: hidden;
+  background: #f9e6a8 url("../img/fondo-login.png") center bottom / cover no-repeat fixed;
+}
+
+.pagina-login .contenido {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(5rem, 15vh, 8.5rem) 1rem 3rem;
+}
+
+.credencial {
+  --correa: 80vh;
+  position: relative;
+  width: min(100%, 27.5rem);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 22px 45px rgba(86, 40, 0, 0.3);
+  /* El eje del balanceo está arriba, donde nace la cinta. */
+  transform-origin: 50% calc(-1 * var(--correa));
+  animation: credencial-llega 1.4s cubic-bezier(0.3, 0.6, 0.3, 1) both;
+}
+
+/* La cinta, con sus costuras, sube hasta salir de la pantalla. */
+.credencial::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 1.6rem);
+  left: 50%;
+  width: 1.75rem;
+  height: var(--correa);
+  transform: translateX(-50%);
+  border-right: 2px dashed rgba(255, 255, 255, 0.4);
+  border-left: 2px dashed rgba(255, 255, 255, 0.4);
+  background: var(--primario);
+}
+
+.credencial__broche {
+  position: absolute;
+  bottom: calc(100% - 0.2rem);
+  left: 50%;
+  width: 2.4rem;
+  height: 1.8rem;
+  transform: translateX(-50%);
+  border-radius: 0.4rem 0.4rem 0.3rem 0.3rem;
+  background: linear-gradient(180deg, #e6ecef 0 42%, #6f7f87 42% 50%, #c3ced3 50% 100%);
+}
+
+.credencial__banda {
+  position: relative;
+  padding: 2.5rem 1.75rem 1.4rem;
+  border-radius: 20px 20px 0 0;
+  background: var(--primario-oscuro);
+  color: #fff;
+}
+
+/* La ranura de la credencial, por donde pasa el broche. */
+.credencial__ranura {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  width: 3.4rem;
+  height: 0.6rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #03201b;
+}
+
+.credencial__institucion { display: flex; align-items: center; gap: 0.9rem; }
+.credencial__emblema { flex: none; width: 2.75rem; height: 2.75rem; color: var(--primario-oscuro); }
+.credencial__marca { margin: 0; font-size: 1.3125rem; font-weight: 800; line-height: 1.2; }
+.credencial__lema { margin: 0; font-size: 0.9375rem; opacity: 0.85; }
+.credencial__cuerpo { padding: 1.6rem 1.75rem 1.75rem; }
+.credencial__cuerpo h1 { font-size: 2rem; }
+.credencial__cuerpo .subtitulo { margin-bottom: 1.25rem; font-size: 1.0625rem; }
+.credencial__cuerpo .boton--ancho { min-height: 3.25rem; margin-top: 0.4rem; font-size: 1.125rem; }
+
+@keyframes credencial-llega {
+  0% { transform: translateY(-110vh) rotate(0deg); }
+  45% { transform: translateY(0) rotate(3deg); }
+  65% { transform: translateY(0) rotate(-1.8deg); }
+  82% { transform: translateY(0) rotate(0.8deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .credencial { animation: none; }
+}
+
+/* 12 · Panel de atención */
+.panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .panel { grid-template-columns: 1fr; }
+}
+
+/* Elección de ventanilla al comenzar. */
+.ventanillas-elegir {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.8rem;
+  margin: 0;
+}
+
+.ventanillas-elegir .boton { min-height: 5.5rem; font-size: 1.3125rem; }
+
+/* Turno en curso: el mismo objeto que el ticket del paciente. Mientras está llamado es de
+   papel amarillo (el paciente aún no llega); en atención pasa a blanco con borde petróleo. */
+.turno {
+  --relleno-turno: 1.75rem;
+  position: relative;
+  padding: 1.5rem var(--relleno-turno);
+  border: 2px solid var(--gris-borde);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.turno--llamado { background: var(--papel); border-color: var(--papel-borde); }
+.turno--en_atencion { border-color: var(--primario); }
+
+/* Sin turno: el hueco donde irá el próximo ticket. */
+.turno--vacio { border-style: dashed; border-color: #87a8a0; background: transparent; }
+
+.turno__cabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.turno__titulo { margin: 0; font-size: 1rem; font-weight: 700; }
+
+.turno__numero {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.turno--en_atencion .turno__numero { color: var(--primario-oscuro); }
+
+.turno__detalle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Línea de corte del ticket: separa los datos del turno de las acciones. Los círculos del
+   color del fondo hacen las muescas. */
+.turno__perforacion {
+  position: relative;
+  margin: 1.5rem calc(-1 * var(--relleno-turno)) 1.25rem;
+  border-top: 2px dashed rgba(16, 48, 43, 0.35);
+}
+
+.turno__perforacion::before, .turno__perforacion::after {
+  content: "";
+  position: absolute;
+  top: -13px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gris-fondo);
+}
+
+.turno__perforacion::before { left: -14px; }
+.turno__perforacion::after { right: -14px; }
+
+.turno__vacio { margin: 0.75rem 0 1.5rem; color: var(--texto-suave); font-size: 1.125rem; }
+.turno__acciones { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+.turno__acciones form { margin: 0; }
+
+/* Turno llamado: la acción principal ocupa toda la fila; abajo, re-llamar y, apartada en el otro
+   extremo, la que no se deshace (ausente), para no pulsarla por error. */
+.turno--llamado .turno__acciones { display: grid; grid-template-columns: 1fr 1fr; }
+.turno--llamado .turno__acciones form:first-child { grid-column: 1 / -1; }
+.turno--llamado .turno__acciones form:first-child .boton { width: 100%; }
+.turno--llamado .turno__acciones form:last-child { justify-self: end; }
+
+@media (max-width: 480px) {
+  .turno { --relleno-turno: 1.25rem; }
+  .turno__numero { font-size: 4.5rem; }
+  .turno__acciones form, .turno__acciones .boton { width: 100%; }
+  .turno--llamado .turno__acciones { grid-template-columns: 1fr; }
+  .turno--llamado .turno__acciones form:last-child { justify-self: stretch; }
+}
+
+/* 13 · Fila de espera */
+.cola__encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.3rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.cola__encabezado h2 { margin: 0; }
+.cola__total { margin: 0; color: var(--texto-suave); font-weight: 600; }
+
+/* El siguiente en llamarse va en papel claro: está por ser su turno. */
+.cola__proximo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--papel-borde);
+  border-radius: 8px;
+  background: var(--papel-claro);
+}
+
+.cola__proximo strong { font-size: 1.75rem; font-weight: 800; line-height: 1; }
+
+/* Una columna por categoría, como los rollos de papel que reemplaza. */
+.cola__grupos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+@media (max-width: 560px) {
+  .cola__grupos { grid-template-columns: 1fr; }
+}
+
+.cola__grupo h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--texto);
+}
+
+.cola__contador { margin-left: auto; font-size: 1.125rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cola__vacio { margin: 0.6rem 0 0; color: var(--texto-suave); }
+
+.cola__lista { margin: 0; padding: 0; list-style: none; }
+
+.cola__lista li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid var(--gris-borde);
+}
+
+.cola__turno { display: flex; flex-direction: column; line-height: 1.2; }
+.cola__turno strong { font-size: 1.125rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cola__marca { color: var(--primario-oscuro); font-size: 0.8125rem; font-weight: 700; }
+.cola__hora { color: var(--texto-suave); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.cola__item--siguiente { background: var(--papel-claro); box-shadow: inset 4px 0 0 var(--papel-borde); }
+.cola__mas { margin: 0.5rem 0 0; }
+
+/* 14 · Tótem y ticket
+   Pantalla pública de un quiosco, probablemente vertical: letra grande y alto contraste
+   (WCAG 2.1 AA), negro sobre blanco o amarillo como pide el informe para adultos mayores.
+   Todo va en `em`, así el tamaño completo sigue al de la pantalla. */
+/* La pantalla del tótem mide unas 49 veces este tamaño de alto en el peor caso (con un mensaje de
+   error): con 1,95vh cabe sin desplazarse, en vertical y en horizontal. */
+.pagina-totem {
+  background: #fff;
+  color: #000;
+  font-size: clamp(16px, min(1.95vh, 3.1vw), 30px);
+}
+
+.pagina-totem .contenido { display: flex; max-width: none; padding: 0; }
+.pagina-totem :focus-visible { outline-width: 0.15em; }
+
+.totem { display: flex; flex: 1; flex-direction: column; width: 100%; }
+
+.totem__cabecera {
+  padding: 0.8em 1.2em;
+  background: var(--primario-oscuro);
+  border-bottom: 0.25em solid var(--acento);
+  color: #fff;
+  text-align: center;
+}
+
+.totem__marca { margin: 0; font-size: 1.3em; font-weight: 800; line-height: 1.2; }
+.totem__lema { margin: 0; font-size: 0.85em; }
+
+.totem__cuerpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 34em;
+  margin: 0 auto;
+  padding: 1.2em;
+  text-align: center;
+}
+
+/* Quiosco horizontal: datos a la izquierda y teclado a la derecha, para que todo quepa sin
+   desplazar la pantalla. */
+@media (orientation: landscape) and (min-width: 900px) {
+  .totem__cuerpo--teclado {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 2.5em;
+    align-content: center;
+    align-items: center;
+    max-width: 62em;
+  }
+}
+
+.totem__pie {
+  margin: 0;
+  padding: 0.8em 1.2em;
+  border-top: 2px solid var(--gris-borde);
+  color: #333;
+  font-size: 0.85em;
+  text-align: center;
+}
+
+/* Los tres pasos sí son una secuencia: el actual va lleno. */
+.totem__pasos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45em;
+  margin: 0 0 1em;
+  padding: 0;
+  font-size: 0.8em;
+  list-style: none;
+}
+
+.totem__paso {
+  padding: 0.2em 0.85em;
+  border: 2px solid var(--gris-borde);
+  border-radius: 999px;
+  color: #444;
+}
+
+.totem__paso[aria-current="step"] {
+  border-color: var(--primario-oscuro);
+  background: var(--primario-oscuro);
+  color: #fff;
+  font-weight: 700;
+}
+
+.totem__titulo { margin: 0 0 0.15em; font-size: 2em; font-weight: 800; }
+.totem__instruccion { margin: 0 0 0.8em; font-size: 1.15em; }
+
+.totem__error {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0 0 0.8em;
+  padding: 0.6em 0.8em;
+  border: 0.12em solid var(--rojo);
+  border-radius: 0.4em;
+  background: var(--rojo-claro);
+  color: var(--rojo);
+  font-weight: 700;
+  text-align: left;
+}
+
+.totem__icono { flex: none; width: 1.6em; height: 1.6em; }
+.totem__icono--grande { display: block; width: 3.6em; height: 3.6em; margin: 0 auto 0.4em; color: var(--primario-oscuro); }
+
+.totem__pantalla {
+  min-height: 2.1em;
+  margin: 0 0 0.3em;
+  padding: 0.3em 0.5em;
+  border: 0.12em solid var(--primario-oscuro);
+  border-radius: 0.35em;
+  font-size: 2em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.totem__pantalla--vacia { color: #595959; font-weight: 400; letter-spacing: 0; }
+.totem__ayuda { min-height: 1.6em; margin: 0 0 0.6em; color: #333; font-size: 0.9em; }
+
+.totem__teclado {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5em;
+  margin-bottom: 0.6em;
+}
+
+.totem__tecla, .totem__confirmar, .totem__boton {
+  min-height: 2.45em;
+  border: 0.1em solid var(--primario-oscuro);
+  border-radius: 0.35em;
+  background: #fff;
+  color: var(--primario-oscuro);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.totem__tecla { font-size: 1.7em; }
+.totem__tecla:active { background: var(--primario-oscuro); color: #fff; }
+.totem__tecla:disabled { border-color: #c4c4c4; background: #f3f3f3; color: #8a8a8a; cursor: not-allowed; }
+
+.totem__tecla--borrar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  font-size: 1.1em;
+}
+
+.totem__tecla--borrar svg { width: 1.4em; height: 1.4em; }
+
+.totem__confirmar {
+  width: 100%;
+  background: var(--primario-oscuro);
+  color: #fff;
+  font-size: 1.5em;
+}
+
+.totem__confirmar:disabled { border-color: #6b6b6b; background: #6b6b6b; cursor: not-allowed; }
+
+.totem__acciones { display: flex; flex-wrap: wrap; gap: 0.6em; justify-content: center; }
+
+.totem__boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3em 1.2em;
+  background: var(--primario-oscuro);
+  color: #fff;
+  font-size: 1.4em;
+  text-decoration: none;
+}
+
+.totem__boton--secundario { background: #fff; color: var(--primario-oscuro); }
+
+/* El dispensador: el ticket sale por la ranura y queda colgando, como de los rollos que
+   reemplaza. Es el único movimiento que no responde a un toque. */
+.dispensador { margin: 0 0 1em; }
+
+.dispensador__ranura {
+  position: relative;
+  height: 1.3em;
+  border-radius: 0.5em 0.5em 0.3em 0.3em;
+  background: var(--primario-oscuro);
+}
+
+/* La boca por la que sale el papel. */
+.dispensador__ranura::after {
+  content: "";
+  position: absolute;
+  right: 0.7em;
+  bottom: 0.3em;
+  left: 0.7em;
+  height: 0.3em;
+  border-radius: 999px;
+  background: #03201b;
+}
+
+.dispensador__salida { padding: 0 1em; overflow: hidden; }
+
+.ticket {
+  position: relative;
+  border: 0.12em solid var(--papel-borde);
+  border-top: none;
+  border-radius: 0 0 0.5em 0.5em;
+  background: var(--papel);
+  color: #000;
+  animation: ticket-sale 0.9s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes ticket-sale {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.ticket p { margin: 0; }
+.ticket__lugar { padding: 0.8em 1em 0; font-size: 0.95em; font-weight: 700; }
+.ticket__cuerpo { padding: 0.2em 1em 0.9em; }
+.ticket__intro { font-size: 1.2em; }
+.ticket__numero { font-size: 4.4em; font-weight: 800; letter-spacing: 0.01em; line-height: 1.05; }
+.ticket__categoria { font-size: 1.35em; font-weight: 700; }
+
+/* Talón: bajo la línea de corte, la fecha y la hora. */
+.ticket__talon {
+  position: relative;
+  padding: 0.6em 1em 0.8em;
+  border-top: 0.12em dashed rgba(0, 0, 0, 0.45);
+  font-size: 0.95em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket__talon::before, .ticket__talon::after {
+  content: "";
+  position: absolute;
+  top: -0.55em;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.ticket__talon::before { left: -0.62em; }
+.ticket__talon::after { right: -0.62em; }
+
+/* Aviso de que la pantalla vuelve sola al inicio, con una barra que se va vaciando. */
+.totem__reinicio { margin-top: 1.2em; color: #333; font-size: 0.85em; }
+.totem__reinicio p { margin: 0; font-variant-numeric: tabular-nums; }
+
+.totem__reloj {
+  height: 0.4em;
+  margin-top: 0.4em;
+  border-radius: 999px;
+  background: var(--gris-borde);
+  overflow: hidden;
+}
+
+.totem__reloj span {
+  display: block;
+  height: 100%;
+  background: var(--primario-oscuro);
+  animation: totem-reloj linear forwards;
+}
+
+@keyframes totem-reloj { from { width: 100%; } to { width: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket { animation: none; }
+  .totem__reloj span { animation: none; }
+}
+
+@media print {
+  .pagina-totem { font-size: 14pt; }
+  .totem__cabecera, .totem__pie, .totem__pasos, .totem__no-imprimir, .dispensador__ranura { display: none !important; }
+  .totem__cuerpo { max-width: none; padding: 0; }
+  .dispensador { margin: 0; padding: 0; background: none; }
+  /* Las impresoras no imprimen fondos: el ticket queda en negro sobre el papel. */
+  .ticket { border: 2px solid #000; border-radius: 0; background: none; animation: none; break-inside: avoid; }
+  .ticket__talon::before, .ticket__talon::after { display: none; }
+}

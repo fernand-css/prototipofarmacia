@@ -1,0 +1,15 @@
+<details class="tarjeta desplegable">
+  <summary>Emitir turno de urgencia</summary>
+  <div class="desplegable__cuerpo">
+    <p class="subtitulo">Emite un turno U que se llama antes que el resto. Si el paciente ya espera, se anula su turno anterior.</p>
+    <form method="post" action="{% url 'turnos:emitir_urgencia' %}" class="formulario-en-linea"
+          x-data="envio" @submit="enviar($event)">
+      {% csrf_token %}
+      <div class="campo">
+        <label for="rut-urgencia">RUT del paciente</label>
+        <input type="text" id="rut-urgencia" name="rut" autocomplete="off" placeholder="12.345.678-5" required>
+      </div>
+      <button type="submit" class="boton" :disabled="enviando">Emitir urgencia</button>
+    </form>
+  </div>
+</details>

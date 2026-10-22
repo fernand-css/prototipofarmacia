@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block titulo %}Atención{% endblock %}
+{% block clase_contenido %}{% if ventanilla %} contenido--ancho{% endif %}{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/panel.js' %}"></script>{% endblock %}
+
+{% block contenido %}
+{% if not ventanilla %}
+  {% include "turnos/_elegir_ventanilla.html" %}
+{% else %}
+  <div class="encabezado-seccion">
+    <div>
+      <h1>Ventanilla {{ ventanilla.numero }}</h1>
+      <p class="subtitulo">Atiende {{ user.nombre_completo }}.</p>
+    </div>
+    <form method="post" action="{% url 'turnos:terminar_turno' %}" x-data="envio" @submit="enviar($event)"
+          data-confirmar-objeto="Ventanilla {{ ventanilla.numero }}"
+          data-confirmar-titulo="¿Terminar su turno en esta ventanilla?"
+          data-confirmar-texto="La ventanilla queda libre y deja de recibir pacientes hasta que alguien la vuelva a abrir."
+          data-confirmar-accion="Terminar turno"
+          data-confirmar-cancelar="Seguir atendiendo">
+      {% csrf_token %}
+      <button type="submit" class="boton boton--secundario" :disabled="enviando">Terminar turno</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="pila">
+      {% include "turnos/_turno_actual.html" %}
+      {% include "turnos/_urgencia.html" %}
+    </div>
+
+    <section class="tarjeta" aria-label="Fila de espera"
+             x-data="filaEnVivo({ url: '{% url 'turnos:cola' %}', segundos: {{ segundos_refresco }}, ventanaActividad: {{ segundos_actividad }} })">
+      <div x-ref="contenido">
+        {% include "turnos/_cola.html" %}
+      </div>
+    </section>
+  </div>
+{% endif %}
+{% endblock %}

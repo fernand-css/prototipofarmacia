@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block titulo %}Su turno{% endblock %}
+{% block clase_body %}pagina-totem{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}
+{% block barra %}{% endblock %}
+{% block pie %}{% endblock %}
+
+{% block contenido %}
+{# Esta página nunca muestra el nombre ni el RUT: es una pantalla pública y se imprime. #}
+<div class="totem" x-data="reinicio({ segundos: {{ segundos_resultado }}, destino: '{% url 'turnos:totem' %}' })">
+  {% include "turnos/_totem_cabecera.html" %}
+
+  <section class="totem__cuerpo">
+    {% if resultado.tipo == "emitido" or resultado.tipo == "vigente" %}
+      <ol class="totem__pasos" aria-label="Pasos para sacar su turno">
+        <li class="totem__paso">1. Escriba su RUT</li>
+        <li class="totem__paso">2. Confirme</li>
+        <li class="totem__paso" aria-current="step">3. Reciba su número</li>
+      </ol>
+
+      <div class="dispensador">
+        <div class="dispensador__ranura"></div>
+        <div class="dispensador__salida">
+          <div class="ticket">
+            <p class="ticket__lugar">Farmacia CESFAM San Nicolás</p>
+            <div class="ticket__cuerpo">
+              <p class="ticket__intro">
+                {% if resultado.tipo == "vigente" %}Usted ya tiene un turno:{% else %}Su turno es:{% endif %}
+              </p>
+              <p class="ticket__numero">{{ resultado.turno.numero }}</p>
+              <p class="ticket__categoria">Atención {{ resultado.turno.get_categoria_display|lower }}</p>
+            </div>
+            <p class="ticket__talon">{{ resultado.turno.emitido_en|date:"j \d\e F, H:i" }}</p>
+          </div>
+        </div>
+      </div>
+
+      <p class="totem__instruccion totem__no-imprimir">Espere en la sala. Su número será llamado en la pantalla.</p>
+      <div class="totem__acciones totem__no-imprimir">
+        <button type="button" class="totem__boton" @click="window.print()">Imprimir</button>
+        <a href="{% url 'turnos:totem' %}" class="totem__boton totem__boton--secundario">Listo</a>
+      </div>
+
+    {% elif resultado.tipo == "domicilio" %}
+      <svg class="totem__icono totem__icono--grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/>
+      </svg>
+      <h1 class="totem__titulo">Su despacho es a domicilio</h1>
+      <p class="totem__instruccion">Sus medicamentos se entregan en su domicilio. Si de todas formas desea atenderse aquí, puede pedir un turno.</p>
+      <form method="post" action="{% url 'turnos:totem_turno' %}" class="totem__acciones">
+        {% csrf_token %}
+        <input type="hidden" name="rut" value="{{ rut }}">
+        <input type="hidden" name="insistir" value="1">
+        <button type="submit" class="totem__boton">Pedir turno igual</button>
+        <a href="{% url 'turnos:totem' %}" class="totem__boton totem__boton--secundario">Volver al inicio</a>
+      </form>
+
+    {% else %}
+      <svg class="totem__icono totem__icono--grande" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8.5 10h7M8.5 14h7M8.5 17.5h4"/>
+      </svg>
+      <h1 class="totem__titulo">No podemos darle un turno</h1>
+      <p class="totem__instruccion">Su receta requiere renovación médica. Acérquese al mesón de la farmacia.</p>
+      <div class="totem__acciones">
+        <a href="{% url 'turnos:totem' %}" class="totem__boton">Volver al inicio</a>
+      </div>
+    {% endif %}
+
+    <div class="totem__reinicio totem__no-imprimir">
+      <p>Esta pantalla volverá al inicio en <strong x-text="restante">{{ segundos_resultado }}</strong> segundos.</p>
+      <div class="totem__reloj" aria-hidden="true"><span style="animation-duration: {{ segundos_resultado }}s"></span></div>
+    </div>
+  </section>
+
+  <p class="totem__pie">¿Necesita ayuda? Consulte en el mesón de la farmacia.</p>
+</div>
+{% endblock %}

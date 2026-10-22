@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block titulo %}Ventanillas{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Ventanillas</h1>
+    <p class="subtitulo">Puestos de atención de la farmacia. Solo las habilitadas reciben pacientes.</p>
+  </div>
+  <form method="post" action="{% url 'turnos:ventanilla_crear' %}">
+    {% csrf_token %}
+    <button type="submit" class="boton">Agregar ventanilla</button>
+  </form>
+</div>
+
+{% if ventanillas %}
+  <ul class="lista lista--ventanillas">
+    {% for ventanilla in ventanillas %}
+      <li class="lista__fila{% if not ventanilla.habilitada %} lista__fila--apagada{% endif %}">
+        <div class="lista__datos">
+          <p class="lista__nombre">
+            Ventanilla {{ ventanilla.numero }}
+            {% if ventanilla.habilitada %}
+              <span class="insignia insignia--activa">Habilitada</span>
+            {% else %}
+              <span class="insignia insignia--inactiva">Deshabilitada</span>
+            {% endif %}
+          </p>
+          <p class="lista__detalle">
+            {% if ventanilla.funcionario %}
+              Atiende {{ ventanilla.funcionario.nombre_completo }}.
+            {% elif ventanilla.habilitada %}
+              Libre: cualquier funcionario puede abrirla.
+            {% else %}
+              No recibe pacientes.
+            {% endif %}
+          </p>
+        </div>
+        <div class="lista__acciones">
+          <form method="post" action="{% url 'turnos:ventanilla_cambiar_estado' ventanilla.pk %}"
+                {% if ventanilla.habilitada and ventanilla.funcionario %}
+                  x-data="envio" @submit="enviar($event)"
+                  data-confirmar-objeto="Ventanilla {{ ventanilla.numero }}"
+                  data-confirmar-titulo="¿Deshabilitar esta ventanilla?"
+                  data-confirmar-texto="{{ ventanilla.funcionario.nombre_completo }} la tiene abierta. Al deshabilitarla queda libre y deja de recibir pacientes."
+                  data-confirmar-accion="Deshabilitar"
+                  data-confirmar-peligro
+                {% endif %}>
+            {% csrf_token %}
+            <button type="submit" class="boton boton--texto">
+              {% if ventanilla.habilitada %}Deshabilitar{% else %}Habilitar{% endif %}
+            </button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="lista__vacia">Todavía no hay ventanillas. Agregue la primera con «Agregar ventanilla».</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% if turno %}
+  <section class="turno turno--{{ turno.estado }}" aria-labelledby="titulo-turno">
+    <div class="turno__cabecera">
+      <h2 id="titulo-turno" class="turno__titulo">Turno en curso</h2>
+      <span class="insignia insignia--{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+    </div>
+
+    <p class="turno__numero">{{ turno.numero }}</p>
+    <p class="turno__detalle">
+      <span class="insignia insignia--{{ turno.categoria }}">{{ turno.get_categoria_display }}</span>
+      {% if turno.es_cronico %}<span class="insignia insignia--cronico">Crónico</span>{% endif %}
+      <span>Llamado {% if turno.veces_llamado == 1 %}1 vez{% else %}{{ turno.veces_llamado }} veces{% endif %}</span>
+    </p>
+
+    <div class="turno__perforacion" aria-hidden="true"></div>
+
+    {% if turno.estado == "llamado" %}
+      <div class="turno__acciones" x-data="turnoLlamado({ faltan: {{ segundos_para_ausente }} })">
+        <form method="post" action="{% url 'turnos:iniciar_atencion' %}" @submit="enviar($event)">
+          {% csrf_token %}
+          <button type="submit" class="boton boton--grande" :disabled="enviando">Iniciar atención</button>
+        </form>
+        <form method="post" action="{% url 'turnos:re_llamar' %}" @submit="enviar($event)">
+          {% csrf_token %}
+          <button type="submit" class="boton boton--secundario boton--grande" :disabled="enviando">Re-llamar</button>
+        </form>
+        <form method="post" action="{% url 'turnos:marcar_ausente' %}" @submit="enviar($event)"
+              data-confirmar-objeto="{{ turno.numero }}" data-confirmar-turno
+              data-confirmar-titulo="¿Marcar este turno como ausente?"
+              data-confirmar-texto="El paciente sale de la fila. Si llega después, tendrá que sacar un turno nuevo."
+              data-confirmar-accion="Marcar ausente"
+              data-confirmar-cancelar="Volver"
+              data-confirmar-peligro>
+          {% csrf_token %}
+          <button type="submit" class="boton boton--peligro boton--grande" :disabled="enviando || faltan > 0">
+            Ausente<span x-show="faltan > 0" x-text="' (' + faltan + ' s)'"></span>
+          </button>
+        </form>
+      </div>
+    {% elif turno.estado == "en_atencion" %}
+      <div class="turno__acciones" x-data="envio">
+        <form method="post" action="{% url 'turnos:finalizar_atencion' %}" @submit="enviar($event)">
+          {% csrf_token %}
+          <button type="submit" class="boton boton--grande" :disabled="enviando">Finalizar atención</button>
+        </form>
+      </div>
+    {% endif %}
+  </section>
+{% else %}
+  <section class="turno turno--vacio" aria-labelledby="titulo-turno">
+    <h2 id="titulo-turno" class="turno__titulo">Turno en curso</h2>
+    <p class="turno__vacio">No tiene un turno en curso. Cuando esté listo, llame al siguiente de la fila.</p>
+    <div class="turno__acciones" x-data="envio">
+      <form method="post" action="{% url 'turnos:llamar_siguiente' %}" @submit="enviar($event)">
+        {% csrf_token %}
+        <button type="submit" class="boton boton--grande" :disabled="enviando">Llamar siguiente</button>
+      </form>
+    </div>
+  </section>
+{% endif %}

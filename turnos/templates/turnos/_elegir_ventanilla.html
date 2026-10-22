@@ -1,0 +1,15 @@
+<div class="tarjeta">
+  <h1>Hola, {{ user.nombres }}</h1>
+  <p class="subtitulo">Elija la ventanilla en la que va a atender.</p>
+
+  {% if libres %}
+    <form method="post" action="{% url 'turnos:abrir_ventanilla' %}" class="ventanillas-elegir">
+      {% csrf_token %}
+      {% for libre in libres %}
+        <button type="submit" name="ventanilla" value="{{ libre.pk }}" class="boton">Ventanilla {{ libre.numero }}</button>
+      {% endfor %}
+    </form>
+  {% else %}
+    <p>No hay ventanillas libres. Pida a la Química Farmacéutica que habilite una.</p>
+  {% endif %}
+</div>
