@@ -1,0 +1,14 @@
+{# Modal de confirmación (static/js/comun.js). Lo abre cualquier formulario con data-confirmar-titulo. #}
+<dialog class="modal" x-data="modalConfirmacion" x-ref="dialogo"
+        @confirmar.window="abrir($event.detail)" @cancel.prevent="cerrar()" @click.self="cerrar()"
+        aria-labelledby="modal-titulo" aria-describedby="modal-texto">
+  <div class="modal__hoja">
+    <p class="modal__objeto" :class="{ 'modal__objeto--turno': turno }" x-show="objeto" x-text="objeto"></p>
+    <h2 id="modal-titulo" class="modal__titulo" x-text="titulo"></h2>
+    <p id="modal-texto" class="modal__texto" x-show="texto" x-text="texto"></p>
+    <div class="modal__acciones">
+      <button type="button" class="boton boton--secundario" x-ref="botonCancelar" @click="cerrar()" x-text="cancelar">Cancelar</button>
+      <button type="button" class="boton" :class="{ 'boton--rojo': peligro }" @click="aceptar()" x-text="accion">Confirmar</button>
+    </div>
+  </div>
+</dialog>

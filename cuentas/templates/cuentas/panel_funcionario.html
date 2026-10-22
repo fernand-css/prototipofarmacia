@@ -7,7 +7,7 @@
   <h1>Hola, {{ user.nombres }}</h1>
   <p class="subtitulo">Sesión iniciada como <strong>{{ user.nombre_completo }}</strong>, RUT {{ user.rut }}.</p>
 
-  <h2>Panel de atención</h2>
-  <p>Desde aquí podrá llamar al siguiente paciente de la fila de farmacia. Esa función llega en un spec posterior, junto con la emisión de tickets y la pantalla de sala de espera.</p>
+  <h2>{{ user.get_rol_display }}</h2>
+  <p>Su rol aún no tiene funciones en el sistema. Las del Encargado de Terreno llegan en un spec posterior.</p>
 </div>
 {% endblock %}

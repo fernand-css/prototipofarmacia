@@ -58,3 +58,8 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     @property
     def es_qf(self):
         return self.rol == Rol.QF
+
+    @property
+    def puede_atender(self):
+        """Atienden en ventanilla el funcionario y la QF; el Encargado de Terreno no."""
+        return self.rol in (Rol.FUNCIONARIO, Rol.QF)

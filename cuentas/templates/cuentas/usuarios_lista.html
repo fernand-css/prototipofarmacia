@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load rut %}
 
 {% block titulo %}Usuarios{% endblock %}
 
@@ -11,44 +12,75 @@
   <a class="boton" href="{% url 'cuentas:usuario_crear' %}">Nuevo funcionario</a>
 </div>
 
-<table class="tabla">
-  <thead>
-    <tr>
-      <th>RUT</th>
-      <th>Nombre</th>
-      <th>Rol</th>
-      <th>Estado</th>
-      <th>Acciones</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for usuario in usuarios %}
-      <tr>
-        <td>{{ usuario.rut }}</td>
-        <td>{{ usuario.nombre_completo }}</td>
-        <td>{{ usuario.get_rol_display }}</td>
-        <td>
-          {% if usuario.is_active %}
-            Activo
-          {% else %}
-            <span class="estado--inactivo">Desactivado</span>
-          {% endif %}
-        </td>
-        <td class="acciones">
-          <a class="boton boton--secundario" href="{% url 'cuentas:usuario_editar' usuario.pk %}">Editar</a>
-          <a class="boton boton--secundario" href="{% url 'cuentas:usuario_resetear_password' usuario.pk %}">Restablecer clave</a>
-          <form method="post" action="{% url 'cuentas:usuario_cambiar_estado' usuario.pk %}"
-                {% if usuario.is_active %}x-data @submit="if (!confirm('¿Desactivar la cuenta de {{ usuario.nombre_completo|escapejs }}?')) $event.preventDefault()"{% endif %}>
-            {% csrf_token %}
-            <button type="submit" class="boton boton--secundario">
-              {% if usuario.is_active %}Desactivar{% else %}Activar{% endif %}
-            </button>
-          </form>
-        </td>
-      </tr>
-    {% empty %}
-      <tr><td colspan="5">Todavía no hay cuentas registradas.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% for grupo in grupos %}
+  {% if grupo.usuarios %}
+    <section class="grupo" aria-labelledby="grupo-{{ forloop.counter }}">
+      <h2 class="grupo__titulo" id="grupo-{{ forloop.counter }}">
+        {{ grupo.nombre }} <span class="grupo__cuenta">{{ grupo.usuarios|length }}</span>
+      </h2>
+      <ul class="lista lista--usuarios">
+        {% for usuario in grupo.usuarios %}
+          <li class="lista__fila">
+            <div class="lista__datos">
+              <p class="lista__nombre">
+                {{ usuario.nombre_completo }}
+                {% if usuario.pk == user.pk %}<span class="insignia insignia--activa">Tu cuenta</span>{% endif %}
+              </p>
+              <p class="lista__detalle">{{ usuario.rut|rut_legible }}</p>
+            </div>
+            <div class="lista__acciones">
+              <a class="boton boton--texto" href="{% url 'cuentas:usuario_editar' usuario.pk %}">Editar</a>
+              <a class="boton boton--texto" href="{% url 'cuentas:usuario_resetear_password' usuario.pk %}">Restablecer clave</a>
+              {% if usuario.pk != user.pk %}
+                <form class="lista__accion--estado" method="post" action="{% url 'cuentas:usuario_cambiar_estado' usuario.pk %}"
+                      x-data="envio" @submit="enviar($event)"
+                      data-confirmar-objeto="{{ usuario.nombre_completo }}"
+                      data-confirmar-titulo="¿Desactivar esta cuenta?"
+                      data-confirmar-texto="No podrá iniciar sesión hasta que la vuelva a activar. Su historial se conserva."
+                      data-confirmar-accion="Desactivar"
+                      data-confirmar-peligro>
+                  {% csrf_token %}
+                  <button type="submit" class="boton boton--texto boton--texto-peligro">Desactivar</button>
+                </form>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+{% endfor %}
+
+{% if desactivadas %}
+  <section class="grupo grupo--apagado" aria-labelledby="grupo-desactivadas">
+    <h2 class="grupo__titulo" id="grupo-desactivadas">
+      Cuentas desactivadas <span class="grupo__cuenta">{{ desactivadas|length }}</span>
+    </h2>
+    <p class="grupo__nota">No pueden iniciar sesión. Su historial se conserva.</p>
+    <ul class="lista lista--usuarios">
+      {% for usuario in desactivadas %}
+        <li class="lista__fila">
+          <div class="lista__datos">
+            <p class="lista__nombre">
+              {{ usuario.nombre_completo }}
+              <span class="insignia insignia--inactiva">{{ usuario.get_rol_display }}</span>
+            </p>
+            <p class="lista__detalle">{{ usuario.rut|rut_legible }}</p>
+          </div>
+          <div class="lista__acciones">
+            <a class="boton boton--texto" href="{% url 'cuentas:usuario_editar' usuario.pk %}">Editar</a>
+            <form class="lista__accion--estado" method="post" action="{% url 'cuentas:usuario_cambiar_estado' usuario.pk %}" x-data="envio" @submit="enviar($event)">
+              {% csrf_token %}
+              <button type="submit" class="boton boton--texto">Activar</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% if not usuarios %}
+  <p class="lista__vacia">Todavía no hay cuentas registradas. Cree la primera con «Nuevo funcionario».</p>
+{% endif %}
 {% endblock %}

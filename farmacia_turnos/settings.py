@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -39,11 +40,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'cuentas',
+    'turnos',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    'cuentas.middleware.SesionPorActividad',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -134,5 +136,20 @@ LOGOUT_REDIRECT_URL = "cuentas:entrar"
 
 # Política de sesión: el mesón de farmacia es un equipo compartido.
 SESSION_COOKIE_AGE = 1800
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_SAVE_EVERY_REQUEST = True  # SesionPorActividad exceptúa las consultas automáticas del panel
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# Turnos de la farmacia (spec 02).
+TURNOS_EDAD_PREFERENCIAL = 60                # 60 años o más
+TURNOS_EDAD_DESPACHO_DOMICILIO = 80          # estrictamente mayor de 80
+TURNOS_GENERALES_POR_PREFERENCIAL = 2
+TURNOS_SEGUNDOS_MINIMOS_AUSENTE = 60
+TURNOS_SEGUNDOS_REFRESCO_PANEL = 5
+TURNOS_SEGUNDOS_ACTIVIDAD_RECIENTE = 60       # el sondeo renueva la sesión si hubo actividad en este plazo
+TURNOS_SEGUNDOS_RESULTADO_TOTEM = 15
+TURNOS_SEGUNDOS_INACTIVIDAD_TOTEM = 30
+
+# Las pruebas crean muchas cuentas y el hash de producción (PBKDF2) tarda unos 0,4 s por cada una:
+# con uno rápido la suite baja de minutos a segundos. Solo se usa al correr `manage.py test`.
+if "test" in sys.argv:
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

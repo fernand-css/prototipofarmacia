@@ -1,0 +1,40 @@
+<div class="cola__encabezado">
+  <h2>Fila de espera</h2>
+  <p class="cola__total">{% if total == 1 %}1 paciente en espera{% else %}{{ total }} pacientes en espera{% endif %}</p>
+</div>
+
+{% if siguiente %}
+  <p class="cola__proximo">
+    <span>Siguiente en llamarse:</span>
+    <strong>{{ siguiente.numero }}</strong>
+    <span class="insignia insignia--{{ siguiente.categoria }}">{{ siguiente.get_categoria_display }}</span>
+  </p>
+{% endif %}
+
+<div class="cola__grupos">
+  {% for grupo in grupos %}
+    <section class="cola__grupo">
+      <h3>
+        <span class="insignia insignia--{{ grupo.categoria }}">{{ grupo.nombre }}</span>
+        <span class="cola__contador"><span class="solo-lector">En espera: </span>{{ grupo.total }}</span>
+      </h3>
+      {% if grupo.turnos %}
+        <ol class="cola__lista">
+          {% for item in grupo.turnos %}
+            <li{% if item.pk == siguiente.pk %} class="cola__item--siguiente"{% endif %}>
+              <span class="cola__turno">
+                <strong>{{ item.numero }}</strong>
+                {% if item.es_cronico %}<span class="cola__marca">Crónico</span>{% endif %}
+                {% if item.pk == siguiente.pk %}<span class="solo-lector">Es el siguiente en llamarse.</span>{% endif %}
+              </span>
+              <span class="cola__hora">{{ item.emitido_en|time:"H:i" }}</span>
+            </li>
+          {% endfor %}
+        </ol>
+        {% if grupo.restantes %}<p class="ayuda cola__mas">y {{ grupo.restantes }} más</p>{% endif %}
+      {% else %}
+        <p class="cola__vacio">Sin pacientes</p>
+      {% endif %}
+    </section>
+  {% endfor %}
+</div>

@@ -3,16 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block titulo %}Sistema de Turnos{% endblock %} · Farmacia CESFAM San Nicolás</title>
+  <title>{% block titulo %}Sistema de turnos{% endblock %} · Farmacia CESFAM San Nicolás</title>
+  <link rel="preload" href="{% static 'fonts/atkinson-hyperlegible-next-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+  {# Los scripts registran sus componentes Alpine, así que van antes de Alpine. #}
+  <script defer src="{% static 'js/comun.js' %}"></script>
+  {% block scripts %}{% endblock %}
   <script defer src="{% static 'js/alpine.min.js' %}"></script>
 </head>
 <body class="{% block clase_body %}{% endblock %}">
+  {% block barra %}
   <header class="barra">
     <div class="barra__marca">
       <span class="barra__titulo">Farmacia CESFAM San Nicolás</span>
-      <span class="barra__subtitulo">Sistema de Turnos</span>
+      <span class="barra__subtitulo">Sistema de turnos</span>
     </div>
+    {% if user.is_authenticated and not user.debe_cambiar_password %}
+      <nav class="barra__nav" aria-label="Principal">
+        {% if user.es_qf %}
+          <a href="{% url 'cuentas:usuarios' %}"{% if request.resolver_match.url_name == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
+          <a href="{% url 'turnos:ventanillas' %}"{% if request.resolver_match.url_name == 'ventanillas' %} aria-current="page"{% endif %}>Ventanillas</a>
+        {% endif %}
+        {% if user.puede_atender %}
+          <a href="{% url 'turnos:atencion' %}"{% if request.resolver_match.url_name == 'atencion' %} aria-current="page"{% endif %}>Atención</a>
+        {% endif %}
+      </nav>
+    {% endif %}
     {% if user.is_authenticated %}
       <div class="barra__sesion">
         <span class="barra__usuario">
@@ -26,8 +42,9 @@
       </div>
     {% endif %}
   </header>
+  {% endblock %}
 
-  <main class="contenido">
+  <main class="contenido{% block clase_contenido %}{% endblock %}">
     {% if messages %}
       <ul class="avisos">
         {% for mensaje in messages %}
@@ -41,6 +58,8 @@
     {% block contenido %}{% endblock %}
   </main>
 
-  <footer class="pie">Centro de Salud Familiar San Nicolás</footer>
+  {% if user.is_authenticated %}{% include "includes/confirmacion.html" %}{% endif %}
+
+  {% block pie %}<footer class="pie">Centro de Salud Familiar San Nicolás</footer>{% endblock %}
 </body>
 </html>
