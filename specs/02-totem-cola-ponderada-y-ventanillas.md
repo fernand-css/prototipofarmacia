@@ -1,6 +1,6 @@
 # SPEC 02 — Tótem de turnos, cola ponderada y ventanillas
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-10-21
 > **Objetivo:** Permitir que el paciente saque su turno digitando el RUT en un tótem y que el funcionario lo llame, re-llame, atienda o marque ausente desde una ventanilla, con un motor que ordena la fila según la categoría del paciente.

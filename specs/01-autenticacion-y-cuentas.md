@@ -1,6 +1,6 @@
 # SPEC 01 — Autenticación por RUT y gestión de cuentas
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** —
 > **Fecha:** 2026-09-07
 > **Objetivo:** Levantar el proyecto Django de la farmacia con inicio de sesión por RUT y una interfaz donde la Química Farmacéutica administre las cuentas de los funcionarios.
