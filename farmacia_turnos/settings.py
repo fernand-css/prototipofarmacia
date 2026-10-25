@@ -149,6 +149,13 @@ TURNOS_SEGUNDOS_ACTIVIDAD_RECIENTE = 60       # el sondeo renueva la sesión si 
 TURNOS_SEGUNDOS_RESULTADO_TOTEM = 15
 TURNOS_SEGUNDOS_INACTIVIDAD_TOTEM = 30
 
+# Pantalla de sala de espera (spec 03).
+TURNOS_SEGUNDOS_REFRESCO_SALA = 2            # objetivo de diseño; se mide (ver Registro de verificación)
+TURNOS_CANTIDAD_LLAMADOS_SALA = 5            # el último llamado más 4 anteriores
+TURNOS_SEGUNDOS_VIGENCIA_ANUNCIO = 30        # un llamado más antiguo que esto ya no se anuncia
+TURNOS_SEGUNDOS_REINTENTO_MAXIMO_SALA = 30   # tope de la espera entre reintentos sin conexión
+TURNOS_SEGUNDOS_RESALTE_SALA = 10            # cuánto dura la etiqueta «Nuevo llamado»
+
 # Las pruebas crean muchas cuentas y el hash de producción (PBKDF2) tarda unos 0,4 s por cada una:
 # con uno rápido la suite baja de minutos a segundos. Solo se usa al correr `manage.py test`.
 if "test" in sys.argv:
