@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block titulo %}Sala de espera{% endblock %}
+{% block clase_body %}pagina-sala{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/sala.js' %}"></script>{% endblock %}
+{% block barra %}{% endblock %}
+{% block pie %}{% endblock %}
+
+{% block contenido %}
+{# La instantánea con que carga la página: se dibuja de inmediato y no se anuncia. #}
+{{ estado|json_script:"estado-sala" }}
+
+<noscript>
+  <p class="sala__sin-js">Esta pantalla necesita JavaScript para mostrar los llamados.</p>
+</noscript>
+
+{# x-cloak: sin JavaScript solo queda a la vista el aviso de arriba, no una pantalla vacía. #}
+<div class="sala" x-cloak
+     x-data="salaEnVivo({ url: '{% url 'turnos:sala_estado' %}', segundos: {{ segundos_refresco }}, vigencia: {{ segundos_vigencia }}, reintentoMaximo: {{ segundos_reintento_maximo }}, resalte: {{ segundos_resalte }} })">
+  <section class="sala__actual" aria-labelledby="sala-actual-titulo">
+    <div class="sala__encabezado">
+      <h1 class="sala__rotulo" id="sala-actual-titulo">Último llamado</h1>
+      <p class="sala__actualizado">Actualizado a las <span x-text="actualizadoA"></span></p>
+    </div>
+    <template x-if="actual">
+      <div class="sala__llamado" :class="{ 'sala__llamado--pulso': pulsando }" @animationend="pulsando = false">
+        <p class="sala__nuevo" x-show="estaResaltado(actual)">Nuevo llamado</p>
+        <p class="sala__numero" :class="{ 'sala__numero--largo': esLargo(actual) }" x-text="actual.numero"></p>
+        <p class="sala__ventanilla">Ventanilla <span class="sala__ventanilla-numero" x-text="actual.ventanilla"></span></p>
+      </div>
+    </template>
+    <template x-if="!actual">
+      <p class="sala__vacio">Esperando llamados</p>
+    </template>
+  </section>
+
+  <section class="sala__anteriores" aria-labelledby="sala-anteriores-titulo">
+    <h2 class="sala__rotulo" id="sala-anteriores-titulo">Llamados anteriores</h2>
+    <ol class="sala__lista">
+      <template x-for="llamado in anteriores" :key="llamado.turno_id">
+        <li class="sala__fila">
+          <span class="sala__nuevo" x-show="estaResaltado(llamado)">Nuevo llamado</span>
+          <span class="sala__fila-numero" :class="{ 'sala__fila-numero--largo': esLargo(llamado) }" x-text="llamado.numero"></span>
+          <span class="sala__fila-ventanilla">Ventanilla <span x-text="llamado.ventanilla"></span></span>
+        </li>
+      </template>
+    </ol>
+  </section>
+
+  <div class="sala__barra">
+    <p class="sala__sin-conexion" role="status" x-show="sinConexion">Sin conexión. Información pendiente de actualización.</p>
+    <div class="sala__sonido">
+      <p class="sala__aviso-voz" role="status" x-show="pideToque">Toque la pantalla para reactivar la voz</p>
+      <p class="sala__aviso-voz" role="status" x-show="soloCampanilla">Sin voz en español: suena la campanilla</p>
+      <template x-if="puedeSonar">
+        <button type="button" class="sala__voz" :aria-pressed="vozActiva ? 'true' : 'false'" @click="alternarVoz()"
+                x-text="vozActiva ? 'Desactivar voz' : 'Activar voz'">Activar voz</button>
+      </template>
+      <template x-if="!puedeSonar">
+        <p class="sala__sin-sonido">Este navegador no puede reproducir sonido</p>
+      </template>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -88,6 +88,13 @@ class SesionYSondeoTests(TestCase):
         respuesta = self.client.get(self.cola)
         self.assertEqual(respuesta.cookies[settings.SESSION_COOKIE_NAME].value, "")
 
+    def test_la_consulta_de_la_sala_sin_actividad_no_renueva_la_sesion(self):
+        """Si el monitor de la sala quedó con una sesión abierta por error, esta vence igual."""
+        self.vence_en(60)
+        respuesta = self.client.get(reverse("turnos:sala_estado"))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertLess(self.segundos_restantes(), 61)
+
     def test_el_sondeo_sin_sesion_va_al_login(self):
         self.client.logout()
         self.assertEqual(self.client.get(self.cola).status_code, 302)

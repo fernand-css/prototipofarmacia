@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib import messages
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -23,6 +23,7 @@ from turnos.servicios import (
     iniciar_atencion,
     llamar_siguiente,
     marcar_ausente,
+    obtener_estado_sala,
     re_llamar,
     resumen_cola,
     segundos_para_ausente,
@@ -62,6 +63,34 @@ def totem_turno(request):
         "turnos/totem_resultado.html",
         _contexto_totem(resultado=resultado, rut=form.cleaned_data["rut"]),
     )
+
+
+# --- Sala de espera (pública, sin login) --------------------------------------------------------
+
+
+@never_cache
+@require_GET
+def sala(request):
+    """Pantalla del televisor de la sala. Trae los llamados incrustados: se ve completa al cargar."""
+    return render(
+        request,
+        "turnos/sala.html",
+        {
+            "estado": obtener_estado_sala(),
+            "segundos_refresco": settings.TURNOS_SEGUNDOS_REFRESCO_SALA,
+            "segundos_vigencia": settings.TURNOS_SEGUNDOS_VIGENCIA_ANUNCIO,
+            "segundos_reintento_maximo": settings.TURNOS_SEGUNDOS_REINTENTO_MAXIMO_SALA,
+            "segundos_resalte": settings.TURNOS_SEGUNDOS_RESALTE_SALA,
+        },
+    )
+
+
+@method_decorator(never_cache, name="dispatch")
+class SalaEstadoView(SondeoAutomatico, View):
+    """Los llamados del día en JSON; la pantalla de la sala lo pide cada pocos segundos."""
+
+    def get(self, request):
+        return JsonResponse(obtener_estado_sala())
 
 
 # --- Ventanillas (solo la QF) -------------------------------------------------------------------

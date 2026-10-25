@@ -1,4 +1,4 @@
-"""Lógica de negocio de los turnos: emisión, ventanillas, llamado y atención, y fila de espera.
+"""Lógica de negocio de los turnos: emisión, ventanillas, llamado y atención, fila y sala de espera.
 
 Las vistas solo traducen peticiones y mensajes; las reglas viven aquí. Una acción que no
 corresponde lanza `ErrorDeAtencion`, y su mensaje se muestra tal cual al funcionario.
@@ -336,3 +336,48 @@ def resumen_cola(fecha=None):
             }
         )
     return {"total": len(en_espera), "grupos": grupos, "siguiente": elegir_siguiente(fecha)}
+
+
+# --- Sala de espera --------------------------------------------------------------------------
+
+
+def _hora_local(momento):
+    # Milisegundos: es el formato que lee `Date` de JavaScript y basta para medir la latencia.
+    return timezone.localtime(momento).isoformat(timespec="milliseconds")
+
+
+def obtener_estado_sala(fecha=None):
+    """Los últimos llamados del día para la pantalla pública de la sala, del más reciente al más antiguo.
+
+    Cada llamado lleva solo número de turno, número de ventanilla y lo que lo identifica: la
+    pantalla es pública y no debe recibir datos del paciente. Un re-llamado sube al turno al
+    primer lugar sin repetirlo. No modifica datos.
+    """
+    fecha = fecha or timezone.localdate()
+    llamados = (
+        Turno.objects.filter(
+            fecha=fecha,
+            ultimo_llamado_en__isnull=False,
+            ventanilla__isnull=False,
+            veces_llamado__gte=1,
+        )
+        .exclude(estado__in=(EstadoTurno.EN_ESPERA, EstadoTurno.ANULADO))
+        .select_related("ventanilla")
+        .order_by("-ultimo_llamado_en", "-pk")[: settings.TURNOS_CANTIDAD_LLAMADOS_SALA]
+    )
+    recientes = [
+        {
+            "turno_id": turno.pk,
+            "numero": turno.numero,
+            "ventanilla": turno.ventanilla.numero,
+            "veces_llamado": turno.veces_llamado,
+            "ultimo_llamado_en": _hora_local(turno.ultimo_llamado_en),
+        }
+        for turno in llamados
+    ]
+    return {
+        "fecha": fecha.isoformat(),
+        "servidor_en": _hora_local(timezone.now()),
+        "actual": recientes[0] if recientes else None,
+        "recientes": recientes,
+    }

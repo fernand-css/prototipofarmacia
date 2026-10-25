@@ -8,13 +8,14 @@
    turno" significa "es su turno" y no se usa para nada más.
 
    Índice
-    1. Fuente y variables    8. Insignias
-    2. Base                  9. Avisos
-    3. Barra superior       10. Tablas y listas
-    4. Contenido y pie      11. Inicio de sesión
-    5. Tarjetas             12. Panel de atención
-    6. Formularios          13. Fila de espera
-    7. Botones              14. Tótem y ticket
+    1. Fuente y variables    9. Avisos
+    2. Base                 10. Tablas y listas
+    3. Barra superior       11. Inicio de sesión
+    4. Contenido y pie      12. Panel de atención
+    5. Tarjetas             13. Fila de espera
+    6. Formularios          14. Tótem y ticket
+    7. Botones              15. Sala de espera
+    8. Insignias
    ===================================================================== */
 
 /* 1 · Fuente y variables
@@ -42,7 +43,8 @@
   --borde-campo: #75948d; /* 3,3:1 sobre blanco: el borde de un campo se distingue */
   --texto: #0f2b27;
   --texto-suave: #4a6661;
-  /* Papel de turno: el ticket, el turno llamado y el siguiente en la fila. Nada más. */
+  /* Papel de turno: el ticket, el turno llamado, el siguiente en la fila y el último llamado de la
+     sala de espera. Nada más. */
   --papel: #ffd84d;
   --papel-claro: #fff3c4;
   --papel-borde: #8a6a00;
@@ -88,6 +90,9 @@ a { color: var(--primario-oscuro); }
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Lo que Alpine dibuja queda oculto hasta que Alpine arranca (y sin JavaScript, siempre). */
+[x-cloak] { display: none !important; }
 
 /* 3 · Barra superior */
 .barra {
@@ -972,7 +977,8 @@ a { color: var(--primario-oscuro); }
 .totem__boton--secundario { background: #fff; color: var(--primario-oscuro); }
 
 /* El dispensador: el ticket sale por la ranura y queda colgando, como de los rollos que
-   reemplaza. Es el único movimiento que no responde a un toque. */
+   reemplaza. Con el pulso del último llamado de la sala de espera, es el único movimiento que no
+   responde a un toque. */
 .dispensador { margin: 0 0 1em; }
 
 .dispensador__ranura {
@@ -1074,4 +1080,204 @@ a { color: var(--primario-oscuro); }
   /* Las impresoras no imprimen fondos: el ticket queda en negro sobre el papel. */
   .ticket { border: 2px solid #000; border-radius: 0; background: none; animation: none; break-inside: avoid; }
   .ticket__talon::before, .ticket__talon::after { display: none; }
+}
+
+/* 15 · Sala de espera
+   Pantalla pública de un televisor, que se lee de lejos: el último llamado en grande sobre papel
+   de turno (en la sala, "es su turno" es literal) y los anteriores en una lista sobria. Sin forma
+   de ticket: la sala no entrega un papel. Negro sobre blanco o amarillo, como el tótem, y todo
+   en `em` para que el tamaño completo siga al de la pantalla. */
+/* En un televisor horizontal (16:9) manda el ancho: con 1,25vw el número del último llamado cabe
+   en su columna, y el alto queda con holgura para la barra inferior. */
+.pagina-sala {
+  background: #fff;
+  color: #000;
+  font-size: clamp(12px, min(2.3vh, 1.25vw), 48px);
+}
+
+.pagina-sala .contenido { display: flex; max-width: none; padding: 0; }
+
+.sala {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 1.25em 2em;
+  width: 100%;
+  padding: 1.5em 2em;
+}
+
+.sala__actual, .sala__anteriores { display: flex; flex-direction: column; min-height: 0; }
+
+.sala__rotulo {
+  margin: 0 0 0.4em;
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Junto al título del último llamado, la hora de la última respuesta del servidor. */
+.sala__encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 1em;
+}
+
+.sala__actualizado { margin: 0; color: var(--texto-suave); font-size: 1.25em; font-variant-numeric: tabular-nums; }
+
+/* El último llamado ocupa todo el alto de su columna, haya o no llamado, para que la pantalla no
+   cambie de forma cuando llega el primero del día. */
+.sala__llamado, .sala__vacio {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  text-align: center;
+}
+
+.sala__llamado {
+  position: relative;
+  padding: 1em 1.5em;
+  border: 0.15em solid var(--papel-borde);
+  border-radius: 0.6em;
+  background: var(--papel);
+}
+
+.sala__numero {
+  margin: 0;
+  font-size: 13em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Un número de cuatro cifras ("G-1000") se achica para caber en una línea. */
+.sala__numero--largo { font-size: 10.5em; }
+
+.sala__ventanilla { margin: 0.3em 0 0; font-size: 4.5em; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+.sala__ventanilla-numero { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* El último llamado pulsa al llegar: 3 pulsos lentos, uno por segundo, bajo el umbral de 3
+   destellos por segundo. En la sala nadie mira la pantalla cuando llega un llamado, y el
+   movimiento atrae la vista aunque la voz esté apagada. Con el ticket que sale del tótem, es el
+   único movimiento que no responde a una acción. */
+.sala__llamado--pulso { animation: sala-llamado 1s ease-in-out 3; }
+
+@keyframes sala-llamado {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(138, 106, 0, 0); }
+  50% { transform: scale(1.02); box-shadow: 0 0 0 0.6em rgba(138, 106, 0, 0.35); }
+}
+
+/* "Nuevo llamado" en texto: el aviso no depende del movimiento ni del color. */
+.sala__nuevo {
+  margin: 0;
+  padding: 0.15em 0.7em;
+  border-radius: 999px;
+  background: #000;
+  color: #fff;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* En la tarjeta va arriba y fuera del flujo, así el número no se mueve cuando la etiqueta se va. */
+.sala__llamado .sala__nuevo { position: absolute; top: 0.6em; left: 50%; font-size: 2em; transform: translateX(-50%); }
+
+/* Sin llamados todavía: sin papel, porque no es el turno de nadie. */
+.sala__vacio {
+  padding: 0.5em;
+  border: 0.05em solid var(--gris-borde);
+  border-radius: 0.2em;
+  background: var(--gris-fondo);
+  color: var(--texto-suave);
+  font-size: 3em;
+  font-weight: 700;
+}
+
+.sala__anteriores .sala__rotulo { padding-bottom: 0.3em; border-bottom: 0.08em solid #000; }
+
+.sala__lista { margin: 0; padding: 0; list-style: none; }
+
+/* Número a la izquierda y ventanilla a la derecha; "Nuevo llamado", si lo lleva, en su propia línea
+   encima, para que la fila no se desordene. */
+.sala__fila {
+  display: grid;
+  grid-template-areas: "nuevo nuevo" "numero ventanilla";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 1em;
+  padding: 0.5em 0.3em;
+  border-bottom: 0.08em solid var(--gris-borde);
+}
+
+.sala__fila .sala__nuevo { grid-area: nuevo; justify-self: start; margin-bottom: 0.2em; font-size: 1.2em; }
+.sala__fila-numero, .sala__fila-ventanilla { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sala__fila-numero { grid-area: numero; font-size: 4.5em; font-weight: 800; line-height: 1.1; }
+.sala__fila-numero--largo { font-size: 3.6em; }
+.sala__fila-ventanilla { grid-area: ventanilla; font-size: 2.1em; font-weight: 700; }
+
+/* Barra inferior: si se cortó la conexión, el aviso de que lo que se ve puede no estar al día; a
+   la derecha, la voz. Con todos sus avisos a la vez cabe en una línea a 1366×768. */
+.sala__barra {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6em 1em;
+  font-size: 1.25em;
+}
+
+.sala__barra p { margin: 0; }
+
+.sala__sin-conexion, .sala__aviso-voz {
+  padding: 0.3em 0.8em;
+  border-left: 0.3em solid var(--ambar);
+  border-radius: 0.2em;
+  background: var(--ambar-claro);
+  color: var(--ambar);
+  font-weight: 700;
+}
+
+/* El control de la voz y sus avisos, a la derecha de la barra: siempre a la vista y manejable con
+   el teclado. Encendido, el botón va lleno, como los pasos activos del tótem. */
+.sala__sonido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6em 1em;
+  margin-left: auto;
+}
+
+.sala__voz {
+  padding: 0.3em 1em;
+  border: 0.1em solid var(--primario-oscuro);
+  border-radius: 0.35em;
+  background: #fff;
+  color: var(--primario-oscuro);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sala__voz[aria-pressed="true"] { background: var(--primario-oscuro); color: #fff; }
+.sala__sin-sonido { color: var(--texto-suave); font-weight: 700; }
+.pagina-sala :focus-visible { outline-width: 0.15em; }
+
+.sala__sin-js { margin: auto; padding: 1em; font-size: 2em; font-weight: 700; text-align: center; }
+
+/* Pantalla vertical: el último llamado arriba, los anteriores debajo y al final la barra. */
+@media (orientation: portrait) {
+  .pagina-sala { font-size: clamp(12px, min(1.6vh, 2.1vw), 48px); }
+  .sala { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sala__llamado--pulso { animation: none; }
 }
