@@ -292,3 +292,61 @@ class CargaPadron(models.Model):
 
     def __str__(self):
         return f"Carga {self.pk} de {self.nombre_archivo} ({self.get_estado_display()})"
+
+
+class EstadoPreparacion(models.TextChoices):
+    EN_PREPARACION = "en_preparacion", "En preparación"
+    LISTA = "lista", "Lista"
+    ENTREGADA = "entregada", "Entregada"
+    PENDIENTE_RETIRO = "pendiente_retiro", "Pendiente de retiro"
+    ANULADA = "anulada", "Anulada"
+
+
+class Preparacion(models.Model):
+    """Lo que la farmacia prepara para un turno, desde la recepción hasta la entrega (HU-17, HU-18).
+
+    Se recibe al iniciar la atención. `lista_en` es la fecha original de preparación: no cambia
+    al entregar un pendiente. Una preparación entregada con `no_retirada_en` lleno es un retiro
+    posterior a un «No retiró».
+    """
+
+    turno = models.OneToOneField(
+        Turno, on_delete=models.PROTECT, related_name="preparacion", verbose_name="turno"
+    )
+    estado = models.CharField(
+        "estado",
+        max_length=16,
+        choices=EstadoPreparacion.choices,
+        default=EstadoPreparacion.EN_PREPARACION,
+    )
+    recibida_en = models.DateTimeField("recibida en", default=timezone.now)
+    recibida_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", verbose_name="recibida por"
+    )
+    lista_en = models.DateTimeField("lista en", null=True, blank=True)
+    preparada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="preparada por",
+    )
+    no_retirada_en = models.DateTimeField("no retirada en", null=True, blank=True)
+    retirada_en = models.DateTimeField("retirada en", null=True, blank=True)
+    retirada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="retirada por",
+    )
+
+    class Meta:
+        verbose_name = "preparación"
+        verbose_name_plural = "preparaciones"
+        ordering = ["recibida_en"]
+
+    def __str__(self):
+        return f"Preparación de {self.turno} ({self.get_estado_display()})"

@@ -1,0 +1,38 @@
+{# Fragmento que la pantalla de preparación vuelve a pedir cada pocos segundos (filaEnVivo). #}
+<section class="grupo" aria-labelledby="titulo-en-preparacion">
+  <h2 class="grupo__titulo" id="titulo-en-preparacion">
+    En preparación <span class="grupo__cuenta">{{ en_preparacion|length }}</span>
+  </h2>
+  {% if en_preparacion %}
+    <ul class="lista lista--preparacion">
+      {% for preparacion in en_preparacion %}
+        <li class="lista__fila">
+          {% include "turnos/_preparacion_datos.html" %}
+          <form method="post" action="{% url 'turnos:preparacion_lista' preparacion.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="boton boton--texto">Marcar lista</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="lista__vacia">No hay recetas en preparación.</p>
+  {% endif %}
+</section>
+
+<section class="grupo" aria-labelledby="titulo-listas">
+  <h2 class="grupo__titulo" id="titulo-listas">
+    Listas para entregar <span class="grupo__cuenta">{{ listas|length }}</span>
+  </h2>
+  {% if listas %}
+    <ul class="lista">
+      {% for preparacion in listas %}
+        <li class="lista__fila">
+          {% include "turnos/_preparacion_datos.html" %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="lista__vacia">No hay recetas listas esperando su entrega.</p>
+  {% endif %}
+</section>

@@ -161,6 +161,11 @@ TURNOS_PADRON_BYTES_MAXIMOS = 5 * 1024 * 1024
 TURNOS_PADRON_FILAS_MAXIMAS = 5000           # sin contar el encabezado
 TURNOS_PADRON_MINUTOS_PENDIENTE = 60         # una carga sin confirmar se descarta pasado este plazo
 
+# Espera estimada en el ticket del tótem (spec 05).
+TURNOS_DIAS_HISTORIAL_ESPERA = 30            # días de atenciones que entran al promedio
+TURNOS_MUESTRAS_MINIMAS_ESPERA = 20          # con menos atenciones no se muestra estimación
+TURNOS_MINUTOS_REDONDEO_ESPERA = 5           # la espera se redondea hacia arriba a este múltiplo
+
 # Las pruebas crean muchas cuentas y el hash de producción (PBKDF2) tarda unos 0,4 s por cada una:
 # con uno rápido la suite baja de minutos a segundos. Solo se usa al correr `manage.py test`.
 if "test" in sys.argv:

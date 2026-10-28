@@ -8,10 +8,12 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
+from django.utils import timezone
 from django.views.generic import ListView
 
 from cuentas.mixins import SondeoAutomatico, SoloQF
-from turnos.forms import CargaPadronForm, RutForm
+from turnos.estimacion import estimar_espera, texto_de_espera
+from turnos.forms import BusquedaPreparadosForm, CargaPadronForm, RutForm
 from turnos.importacion import (
     ErrorDeArchivo,
     ErrorDeCarga,
@@ -23,7 +25,16 @@ from turnos.importacion import (
     preparar_carga,
 )
 from turnos.mixins import SoloAtencion
-from turnos.models import CargaPadron, Categoria, EstadoCarga, EstadoTurno, Paciente, Ventanilla
+from turnos.models import (
+    CargaPadron,
+    Categoria,
+    EstadoCarga,
+    EstadoPreparacion,
+    EstadoTurno,
+    Paciente,
+    Preparacion,
+    Ventanilla,
+)
 from turnos.servicios import (
     ErrorDeAtencion,
     TipoResultado,
@@ -31,12 +42,17 @@ from turnos.servicios import (
     cambiar_estado_ventanilla,
     crear_ventanilla,
     emitir_turno,
+    entregar_pendiente,
     finalizar_atencion,
     iniciar_atencion,
     llamar_siguiente,
     marcar_ausente,
+    marcar_lista,
     obtener_estado_sala,
+    preparaciones_del_dia,
+    preparados_pendientes,
     re_llamar,
+    registrar_no_retiro,
     resumen_cola,
     segundos_para_ausente,
     terminar_turno_de_ventanilla,
@@ -70,11 +86,12 @@ def totem_turno(request):
         form.cleaned_data["rut"],
         insistir_domicilio=request.POST.get("insistir") == "1",
     )
-    return render(
-        request,
-        "turnos/totem_resultado.html",
-        _contexto_totem(resultado=resultado, rut=form.cleaned_data["rut"]),
-    )
+    contexto = _contexto_totem(resultado=resultado, rut=form.cleaned_data["rut"])
+    if resultado.tipo in (TipoResultado.EMITIDO, TipoResultado.VIGENTE):
+        # Una foto del momento (HU-18): volver a digitar el RUT con el turno vigente la recalcula.
+        contexto["espera"] = texto_de_espera(estimar_espera(resultado.turno))
+        contexto["espera_calculada"] = timezone.now()
+    return render(request, "turnos/totem_resultado.html", contexto)
 
 
 # --- Sala de espera (pública, sin login) --------------------------------------------------------
@@ -277,6 +294,8 @@ class AtencionView(SoloAtencion, View):
         }
         if turno and turno.estado == EstadoTurno.LLAMADO:
             contexto["segundos_para_ausente"] = segundos_para_ausente(turno)
+        if turno and turno.estado == EstadoTurno.EN_ATENCION:
+            contexto["preparacion"] = Preparacion.objects.filter(turno=turno).first()
         return render(request, "turnos/atencion.html", contexto)
 
 
@@ -320,8 +339,11 @@ class AccionDeAtencionView(SoloAtencion, View):
         except ErrorDeAtencion as error:
             messages.warning(request, str(error))
         else:
-            messages.success(request, self.mensaje_exito.format(numero=turno.numero))
+            messages.success(request, self.mensaje(turno))
         return redirect("turnos:atencion")
+
+    def mensaje(self, turno):
+        return self.mensaje_exito.format(numero=turno.numero)
 
 
 class LlamarSiguienteView(AccionDeAtencionView):
@@ -347,6 +369,16 @@ class FinalizarAtencionView(AccionDeAtencionView):
 class MarcarAusenteView(AccionDeAtencionView):
     accion = staticmethod(marcar_ausente)
     mensaje_exito = "Marcó como ausente al turno {numero}."
+
+
+class RegistrarNoRetiroView(AccionDeAtencionView):
+    accion = staticmethod(registrar_no_retiro)
+
+    def mensaje(self, turno):
+        preparacion = Preparacion.objects.filter(turno=turno).first()
+        if preparacion and preparacion.estado == EstadoPreparacion.PENDIENTE_RETIRO:
+            return f"El turno {turno.numero} quedó ausente y su preparado, pendiente de retiro."
+        return f"El turno {turno.numero} quedó ausente y su preparación se anuló."
 
 
 class EmitirUrgenciaView(SoloAtencion, View):
@@ -381,3 +413,84 @@ class ColaView(SondeoAutomatico, SoloAtencion, View):
 
     def get(self, request):
         return render(request, "turnos/_cola.html", resumen_cola())
+
+
+@method_decorator(never_cache, name="dispatch")
+class AtencionPreparacionView(SondeoAutomatico, SoloAtencion, View):
+    """Fragmento HTML con el estado de la preparación del turno en atención; el panel lo pide
+    cada pocos segundos hasta que la preparación está lista. Solo trae el estado: los botones
+    quedan fijos en el panel, así el modal de «No retiró» nunca pierde su formulario."""
+
+    def get(self, request):
+        turno = turno_en_curso(request.user)
+        preparacion = None
+        if turno and turno.estado == EstadoTurno.EN_ATENCION:
+            preparacion = Preparacion.objects.filter(turno=turno).first()
+        return render(request, "turnos/_preparacion_turno.html", {"preparacion": preparacion})
+
+
+# --- Preparación (funcionario y QF) ------------------------------------------------------------
+
+
+class PreparacionView(SoloAtencion, View):
+    """Pantalla de quien prepara: las recetas recibidas en las ventanillas y las ya listas."""
+
+    def get(self, request):
+        return render(request, "turnos/preparacion.html", {
+            "segundos_refresco": settings.TURNOS_SEGUNDOS_REFRESCO_PANEL,
+            "segundos_actividad": settings.TURNOS_SEGUNDOS_ACTIVIDAD_RECIENTE,
+            **preparaciones_del_dia(),
+        })
+
+
+@method_decorator(never_cache, name="dispatch")
+class PreparacionFilaView(SondeoAutomatico, SoloAtencion, View):
+    """Fragmento HTML de la pantalla de preparación; se pide cada pocos segundos."""
+
+    def get(self, request):
+        return render(request, "turnos/_preparacion_fila.html", preparaciones_del_dia())
+
+
+class PreparacionListaView(SoloAtencion, View):
+    def post(self, request, pk):
+        try:
+            preparacion = marcar_lista(pk, request.user)
+        except ErrorDeAtencion as error:
+            messages.warning(request, str(error))
+        else:
+            messages.success(request, f"La preparación del turno {preparacion.turno.numero} quedó lista.")
+        return redirect("turnos:preparacion")
+
+
+class PreparadosView(SoloAtencion, View):
+    """Preparados pendientes de retiro (HU-17). La búsqueda va por POST, como en /recetas/: el RUT
+    no queda en la URL ni en el historial del equipo compartido."""
+
+    template_name = "turnos/preparados.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {
+            "formulario": BusquedaPreparadosForm(),
+            "pendientes": preparados_pendientes(),
+        })
+
+    def post(self, request):
+        formulario = BusquedaPreparadosForm(request.POST)
+        contexto = {"formulario": formulario}
+        if formulario.is_valid():
+            contexto["buscado"] = True
+            contexto["pendientes"] = preparados_pendientes(formulario.cleaned_data["busqueda"])
+        else:
+            contexto["pendientes"] = preparados_pendientes()
+        return render(request, self.template_name, contexto)
+
+
+class PreparadoEntregarView(SoloAtencion, View):
+    def post(self, request, pk):
+        try:
+            preparacion = entregar_pendiente(pk, request.user)
+        except ErrorDeAtencion as error:
+            messages.warning(request, str(error))
+        else:
+            messages.success(request, f"Se entregó el preparado del turno {preparacion.turno.numero}.")
+        return redirect("turnos:preparados")

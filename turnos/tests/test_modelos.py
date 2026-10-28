@@ -5,20 +5,25 @@ from io import StringIO
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
+from cuentas.models import Rol
 from cuentas.validators import validar_rut
 from turnos.forms import PacienteAdminForm
 from turnos.models import (
     Categoria,
     EstadoTurno,
+    EstadoPreparacion,
     Paciente,
+    Preparacion,
     RecetaCronica,
     Turno,
     Ventanilla,
     sumar_meses,
 )
-from turnos.tests.helpers import crear_paciente, nacido_hace
+from turnos.servicios import emitir_turno
+from turnos.tests.helpers import crear_paciente, crear_usuario, nacido_hace
 
 
 class PacienteTests(TestCase):
@@ -153,6 +158,24 @@ class TurnoTests(TestCase):
         self.assertFalse(self.turno().es_cronico)
 
 
+class PreparacionTests(TestCase):
+    def setUp(self):
+        self.funcionario = crear_usuario("11111111-1", Rol.FUNCIONARIO)
+        self.turno = Turno.objects.create(categoria=Categoria.GENERAL, correlativo=1, rut="12345678-5")
+
+    def test_nace_en_preparacion_con_la_hora_de_recepcion(self):
+        preparacion = Preparacion.objects.create(turno=self.turno, recibida_por=self.funcionario)
+        self.assertEqual(preparacion.estado, EstadoPreparacion.EN_PREPARACION)
+        self.assertIsNotNone(preparacion.recibida_en)
+        self.assertIsNone(preparacion.lista_en)
+        self.assertEqual(self.turno.preparacion, preparacion)
+
+    def test_un_turno_no_admite_dos_preparaciones(self):
+        Preparacion.objects.create(turno=self.turno, recibida_por=self.funcionario)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Preparacion.objects.create(turno=self.turno, recibida_por=self.funcionario)
+
+
 class VentanillaTests(TestCase):
     def test_numero_es_unico(self):
         Ventanilla.objects.create(numero=1)
@@ -214,3 +237,54 @@ class CargarDatosDemoTests(TestCase):
         self.cargar()
         for paciente in Paciente.objects.all():
             validar_rut(paciente.rut)
+
+
+class HistorialDeDemoTests(TestCase):
+    """El historial sintético con el que el tótem muestra la espera estimada (spec 05)."""
+
+    def cargar(self):
+        salida = StringIO()
+        call_command("cargar_datos_demo", stdout=salida)
+        return salida.getvalue()
+
+    def test_sin_cuenta_qf_avisa_y_no_carga_historial(self):
+        crear_usuario("11111111-1", Rol.FUNCIONARIO)
+        self.assertIn("No hay una cuenta QF", self.cargar())
+        self.assertFalse(Turno.objects.exists())
+        self.assertFalse(Preparacion.objects.exists())
+
+    def test_carga_30_atenciones_con_preparacion_atribuidas_a_la_qf(self):
+        crear_usuario("11111111-1", Rol.FUNCIONARIO)
+        qf = crear_usuario("22222222-2", Rol.QF)
+        self.assertIn("Historial de espera: 30 atenciones", self.cargar())
+        hoy = timezone.localdate()
+        atenciones = Turno.objects.filter(estado=EstadoTurno.ATENDIDO)
+        self.assertEqual(atenciones.count(), 30)
+        self.assertFalse(atenciones.filter(fecha__gte=hoy).exists())
+        self.assertFalse(atenciones.filter(fecha__lt=hoy - timedelta(days=3)).exists())
+        self.assertEqual(
+            Preparacion.objects.filter(estado=EstadoPreparacion.ENTREGADA, recibida_por=qf).count(), 30
+        )
+        for turno in atenciones:
+            self.assertTrue(turno.inicio_atencion_en < turno.preparacion.lista_en < turno.cierre_en)
+
+    def test_es_idempotente_con_el_historial(self):
+        crear_usuario("22222222-2", Rol.QF)
+        self.cargar()
+        primera = (Turno.objects.count(), Preparacion.objects.count(), Paciente.objects.count())
+        self.cargar()
+        self.assertEqual(primera, (Turno.objects.count(), Preparacion.objects.count(), Paciente.objects.count()))
+        self.assertEqual(primera[:2], (30, 30))
+
+    def test_despues_el_totem_muestra_la_espera_estimada(self):
+        qf = crear_usuario("22222222-2", Rol.QF)
+        self.cargar()
+        Ventanilla.objects.filter(numero=1).update(funcionario=qf)
+        respuesta = self.client.post(reverse("turnos:totem_turno"), {"rut": "10000001-6"})
+        self.assertContains(respuesta, "Espera estimada")
+
+    def test_el_historial_no_toca_la_fila_ni_la_sala_de_hoy(self):
+        crear_usuario("22222222-2", Rol.QF)
+        self.cargar()
+        self.assertEqual(self.client.get(reverse("turnos:sala_estado")).json()["recientes"], [])
+        self.assertEqual(emitir_turno("10000001-6").turno.numero, "G-001")

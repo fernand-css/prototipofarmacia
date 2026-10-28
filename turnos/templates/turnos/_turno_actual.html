@@ -41,7 +41,37 @@
           </button>
         </form>
       </div>
+    {% elif turno.estado == "en_atencion" and preparacion %}
+      {# Solo el estado se actualiza solo; los botones quedan fijos para que el modal no pierda su formulario. #}
+      <div x-data="preparacionEnVivo({ url: '{% url 'turnos:atencion_preparacion' %}', segundos: {{ segundos_refresco }}, ventanaActividad: {{ segundos_actividad }}, lista: {% if preparacion.estado == 'lista' %}true{% else %}false{% endif %} })">
+        <div x-ref="contenido" aria-live="polite">
+          {% include "turnos/_preparacion_turno.html" %}
+        </div>
+        <div class="turno__acciones">
+          <form method="post" action="{% url 'turnos:finalizar_atencion' %}" x-data="envio" @submit="enviar($event)">
+            {% csrf_token %}
+            <button type="submit" class="boton boton--grande" :disabled="enviando || !lista"
+                    {% if preparacion.estado != "lista" %}disabled{% endif %}>Finalizar atención</button>
+          </form>
+          <form method="post" action="{% url 'turnos:registrar_no_retiro' %}" x-data="envio" @submit="enviar($event)"
+                data-confirmar-objeto="{{ turno.numero }}" data-confirmar-turno
+                data-confirmar-titulo="¿El paciente se fue sin retirar sus medicamentos?"
+                {% if preparacion.estado == "lista" %}
+                  data-confirmar-texto="El turno queda ausente y lo preparado pasa a «Preparados», pendiente de retiro. Si el paciente vuelve, se le entrega sin pasar por la fila."
+                {% else %}
+                  data-confirmar-texto="El turno queda ausente y la preparación, que aún no está lista, se anula. Si el paciente vuelve, tendrá que sacar un turno nuevo."
+                {% endif %}
+                data-confirmar-texto-lista="El turno queda ausente y lo preparado pasa a «Preparados», pendiente de retiro. Si el paciente vuelve, se le entrega sin pasar por la fila."
+                data-confirmar-accion="No retiró"
+                data-confirmar-cancelar="Volver"
+                data-confirmar-peligro>
+            {% csrf_token %}
+            <button type="submit" class="boton boton--peligro boton--grande" :disabled="enviando">No retiró</button>
+          </form>
+        </div>
+      </div>
     {% elif turno.estado == "en_atencion" %}
+      {# Turno en atención sin preparación (anterior a su registro, o editado en el admin): se cierra como antes. #}
       <div class="turno__acciones" x-data="envio">
         <form method="post" action="{% url 'turnos:finalizar_atencion' %}" @submit="enviar($event)">
           {% csrf_token %}

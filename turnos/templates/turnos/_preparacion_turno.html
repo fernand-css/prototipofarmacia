@@ -1,0 +1,11 @@
+{# Estado de la preparación del turno en atención. El panel lo vuelve a pedir (preparacionEnVivo) #}
+{# y lee data-estado: con «lista» habilita «Finalizar atención» y deja de preguntar. #}
+<p class="turno__preparacion" data-estado="{{ preparacion.estado|default:'' }}">
+  {% if preparacion.estado == "lista" %}
+    <span class="insignia insignia--lista">Lista</span>
+    <span>La preparación está lista: puede entregarla.</span>
+  {% elif preparacion.estado == "en_preparacion" %}
+    <span class="insignia insignia--en_preparacion">En preparación</span>
+    <span>«Finalizar atención» se habilita cuando la marquen lista en Preparación.</span>
+  {% endif %}
+</p>

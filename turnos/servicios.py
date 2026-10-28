@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import F, Max
 from django.utils import timezone
@@ -17,12 +18,15 @@ from turnos.models import (
     ESTADOS_ACTIVOS,
     ESTADOS_EN_CURSO,
     Categoria,
+    EstadoPreparacion,
     EstadoTurno,
     Paciente,
+    Preparacion,
     RecetaCronica,
     Turno,
     Ventanilla,
 )
+from turnos.importacion import normalizar_encabezado
 from turnos.motor import elegir_siguiente
 
 INTENTOS_ESCRITURA = 3  # reintentos ante un choque con una restricción única
@@ -272,23 +276,44 @@ def segundos_para_ausente(turno):
 
 
 def iniciar_atencion(usuario):
-    """El paciente llegó a la ventanilla: el turno pasa de llamado a en atención."""
+    """El paciente llegó a la ventanilla: el turno pasa de llamado a en atención.
+
+    Es la recepción de la receta: en la misma transacción nace su preparación (HU-18).
+    """
     turno = _turno_en_estado(usuario, EstadoTurno.LLAMADO, "No tiene un turno llamado para iniciar.")
-    Turno.objects.filter(pk=turno.pk, estado=EstadoTurno.LLAMADO).update(
-        estado=EstadoTurno.EN_ATENCION, inicio_atencion_en=timezone.now()
-    )
+    ahora = timezone.now()
+    with transaction.atomic():
+        actualizados = Turno.objects.filter(pk=turno.pk, estado=EstadoTurno.LLAMADO).update(
+            estado=EstadoTurno.EN_ATENCION, inicio_atencion_en=ahora
+        )
+        if actualizados:
+            Preparacion.objects.create(turno=turno, recibida_en=ahora, recibida_por=usuario)
     return Turno.objects.get(pk=turno.pk)
 
 
 def finalizar_atencion(usuario):
-    """Cierra la atención. Si el turno trae una receta crónica, suma una entrega a la receta."""
+    """Entrega lo preparado y cierra la atención. Si el turno trae una receta crónica, suma una entrega.
+
+    Exige la preparación lista. Un turno sin preparación (iniciado antes de que existiera, o
+    editado en el admin) se cierra como antes.
+    """
     with transaction.atomic():
         turno = _turno_en_estado(
             usuario, EstadoTurno.EN_ATENCION, "No tiene una atención en curso para finalizar."
         )
+        preparacion = Preparacion.objects.filter(turno=turno).first()
+        if preparacion and preparacion.estado != EstadoPreparacion.LISTA:
+            raise ErrorDeAtencion("La preparación aún no está lista.")
+        ahora = timezone.now()
         actualizados = Turno.objects.filter(pk=turno.pk, estado=EstadoTurno.EN_ATENCION).update(
-            estado=EstadoTurno.ATENDIDO, cierre_en=timezone.now()
+            estado=EstadoTurno.ATENDIDO, cierre_en=ahora
         )
+        if actualizados and preparacion:
+            entregadas = Preparacion.objects.filter(
+                pk=preparacion.pk, estado=EstadoPreparacion.LISTA
+            ).update(estado=EstadoPreparacion.ENTREGADA, retirada_en=ahora, retirada_por=usuario)
+            if not entregadas:  # revierte el cierre del turno
+                raise ErrorDeAtencion("La preparación cambió mientras tanto. Revise el panel.")
         if actualizados and turno.receta_id:
             RecetaCronica.objects.filter(pk=turno.receta_id).update(
                 entregas_realizadas=F("entregas_realizadas") + 1
@@ -312,6 +337,132 @@ def marcar_ausente(usuario):
     if not actualizados:
         raise ErrorDeAtencion("El turno cambió mientras tanto. Revise el panel.")
     return Turno.objects.get(pk=turno.pk)
+
+
+def registrar_no_retiro(usuario):
+    """El paciente se fue durante la atención sin recibir sus medicamentos: el turno queda ausente.
+
+    Si la preparación ya estaba lista, pasa a preparados pendientes de retiro (HU-17); si no, se
+    anula. No exige plazo: el paciente ya llegó y el funcionario lo vio irse. No suma entregas.
+    """
+    turno = _turno_en_estado(
+        usuario, EstadoTurno.EN_ATENCION, "No tiene una atención en curso."
+    )
+    ahora = timezone.now()
+    with transaction.atomic():
+        actualizados = Turno.objects.filter(pk=turno.pk, estado=EstadoTurno.EN_ATENCION).update(
+            estado=EstadoTurno.AUSENTE, cierre_en=ahora
+        )
+        if not actualizados:
+            raise ErrorDeAtencion("El turno cambió mientras tanto. Revise el panel.")
+        preparacion = Preparacion.objects.filter(turno=turno)
+        # Dos pasadas: si la marcan lista entre una consulta y otra, la segunda la encuentra.
+        for _ in range(2):
+            if preparacion.filter(estado=EstadoPreparacion.LISTA).update(
+                estado=EstadoPreparacion.PENDIENTE_RETIRO, no_retirada_en=ahora
+            ):
+                break
+            if preparacion.filter(estado=EstadoPreparacion.EN_PREPARACION).update(
+                estado=EstadoPreparacion.ANULADA
+            ):
+                break
+    return Turno.objects.get(pk=turno.pk)
+
+
+# --- Preparación -----------------------------------------------------------------------------
+
+
+def marcar_lista(preparacion_id, usuario):
+    """Quien prepara deja lista la preparación. Marcarla dos veces conserva el primer `lista_en`."""
+    actualizados = Preparacion.objects.filter(
+        pk=preparacion_id, estado=EstadoPreparacion.EN_PREPARACION
+    ).update(estado=EstadoPreparacion.LISTA, lista_en=timezone.now(), preparada_por=usuario)
+    preparacion = Preparacion.objects.select_related("turno").filter(pk=preparacion_id).first()
+    if preparacion is None:
+        raise ErrorDeAtencion("Esa preparación no existe.")
+    if not actualizados:
+        if preparacion.estado == EstadoPreparacion.LISTA:
+            raise ErrorDeAtencion(f"La preparación del turno {preparacion.turno.numero} ya estaba lista.")
+        raise ErrorDeAtencion(f"La preparación del turno {preparacion.turno.numero} ya no está en curso.")
+    return preparacion
+
+
+def preparaciones_del_dia(fecha=None, ahora=None):
+    """Lo que la pantalla de preparación muestra: las en curso (urgencias primero, luego por
+    llegada) y las listas que esperan su entrega en la ventanilla. Cada una lleva `minutos`,
+    los minutos enteros desde la recepción."""
+    fecha = fecha or timezone.localdate()
+    ahora = ahora or timezone.now()
+    preparaciones = list(
+        Preparacion.objects.filter(
+            turno__fecha=fecha,
+            estado__in=(EstadoPreparacion.EN_PREPARACION, EstadoPreparacion.LISTA),
+        )
+        .select_related("turno", "turno__paciente", "turno__receta", "turno__ventanilla")
+        .order_by("recibida_en", "pk")
+    )
+    for preparacion in preparaciones:
+        preparacion.minutos = max(0, int((ahora - preparacion.recibida_en).total_seconds() // 60))
+    en_curso = sorted(
+        (p for p in preparaciones if p.estado == EstadoPreparacion.EN_PREPARACION),
+        key=lambda p: p.turno.categoria != Categoria.URGENCIA,  # estable: conserva el orden de llegada
+    )
+    listas = [p for p in preparaciones if p.estado == EstadoPreparacion.LISTA]
+    return {"en_preparacion": en_curso, "listas": listas}
+
+
+def preparados_pendientes(busqueda=None):
+    """Preparados que el paciente no retiró, de cualquier día, del más antiguo al más reciente (HU-17).
+
+    La búsqueda acepta un RUT, con o sin puntos, o una parte del apellido, sin distinguir
+    mayúsculas ni tildes. Un RUT que no está en el padrón solo se encuentra por RUT.
+    """
+    pendientes = (
+        Preparacion.objects.filter(estado=EstadoPreparacion.PENDIENTE_RETIRO)
+        .select_related(
+            "turno", "turno__paciente", "turno__receta", "turno__ventanilla", "preparada_por"
+        )
+        .order_by("lista_en", "pk")
+    )
+    busqueda = (busqueda or "").strip()
+    if not busqueda:
+        return list(pendientes)
+    try:
+        return list(pendientes.filter(turno__rut=normalizar_rut(busqueda)))
+    except ValidationError:
+        pass
+    # La lista es corta y SQLite no compara sin tildes: se filtra en Python.
+    apellido = normalizar_encabezado(busqueda)
+    return [
+        preparacion
+        for preparacion in pendientes
+        if preparacion.turno.paciente
+        and apellido in normalizar_encabezado(preparacion.turno.paciente.apellidos)
+    ]
+
+
+def entregar_pendiente(preparacion_id, usuario):
+    """El paciente volvió por su preparado: se entrega sin pasar por la fila (HU-17).
+
+    El turno sigue ausente y la preparación conserva su `lista_en` original. Si trae receta
+    crónica, suma una entrega solo si la receta aún tiene entregas disponibles.
+    """
+    with transaction.atomic():
+        entregadas = Preparacion.objects.filter(
+            pk=preparacion_id, estado=EstadoPreparacion.PENDIENTE_RETIRO
+        ).update(estado=EstadoPreparacion.ENTREGADA, retirada_en=timezone.now(), retirada_por=usuario)
+        if not entregadas:
+            raise ErrorDeAtencion("Ese preparado ya no está pendiente de retiro.")
+        preparacion = Preparacion.objects.select_related("turno").get(pk=preparacion_id)
+        receta_id = preparacion.turno.receta_id
+        if receta_id and not RecetaCronica.objects.filter(
+            pk=receta_id, entregas_realizadas__lt=F("entregas_maximas")
+        ).update(entregas_realizadas=F("entregas_realizadas") + 1):
+            # Revierte la entrega del preparado: sigue pendiente.
+            raise ErrorDeAtencion(
+                "La receta ya no tiene entregas disponibles. Consulte con la Química Farmacéutica."
+            )
+    return preparacion
 
 
 # --- Fila de espera --------------------------------------------------------------------------
