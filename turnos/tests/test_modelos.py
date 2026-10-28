@@ -72,7 +72,7 @@ class PacienteAdminFormTests(TestCase):
 
 
 class RecetaCronicaTests(TestCase):
-    def receta(self, meses_atras=1, vigencia=6, maximas=6, realizadas=0):
+    def receta(self, meses_atras=1, vigencia=6, maximas=6, realizadas=0, folio=None):
         paciente = Paciente.objects.get_or_create(
             rut="12345678-5",
             defaults={"nombres": "Ana", "apellidos": "Prueba", "fecha_nacimiento": date(1960, 1, 1)},
@@ -84,6 +84,7 @@ class RecetaCronicaTests(TestCase):
             vigencia_meses=vigencia,
             entregas_maximas=maximas,
             entregas_realizadas=realizadas,
+            folio=folio,
         )
 
     def test_sumar_meses_ajusta_fin_de_mes(self):
@@ -102,6 +103,15 @@ class RecetaCronicaTests(TestCase):
         receta = self.receta(maximas=3, realizadas=3)
         self.assertTrue(receta.esta_agotada)
         self.assertFalse(receta.es_utilizable)
+
+    def test_varias_recetas_sin_folio_conviven(self):
+        self.receta()
+        self.assertTrue(self.receta().pk)
+
+    def test_rechaza_folio_repetido(self):
+        self.receta(folio="R-000001")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            self.receta(folio="R-000001")
 
 
 class TurnoTests(TestCase):
@@ -186,6 +196,19 @@ class CargarDatosDemoTests(TestCase):
         self.assertTrue(recetas["Demo Receta Agotada"].esta_agotada)
         self.assertTrue(recetas["Demo Receta Vencida"].esta_vencida)
         self.assertTrue(recetas["Demo Mayor Crónico"].es_utilizable)
+
+    def test_todas_las_recetas_demo_tienen_folio(self):
+        self.cargar()
+        self.cargar()
+        folios = sorted(RecetaCronica.objects.values_list("folio", flat=True))
+        self.assertEqual(folios, ["DEMO-007", "DEMO-008", "DEMO-009", "DEMO-010"])
+
+    def test_da_folio_a_las_recetas_demo_que_no_lo_tenian(self):
+        self.cargar()
+        RecetaCronica.objects.update(folio=None)
+        self.cargar()
+        self.assertFalse(RecetaCronica.objects.filter(folio__isnull=True).exists())
+        self.assertEqual(RecetaCronica.objects.count(), 4)
 
     def test_los_rut_demo_son_validos(self):
         self.cargar()

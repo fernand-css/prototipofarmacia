@@ -222,6 +222,18 @@ class PanelTransicionesVistasTests(TransicionesTests):
         self.assertNotContains(respuesta, "Finalizar atención")
         self.assertContains(respuesta, f"faltan: {settings.TURNOS_SEGUNDOS_MINIMOS_AUSENTE - 10}")
 
+    def test_el_turno_con_receta_muestra_la_entrega_y_el_vencimiento(self):
+        receta, _ = self.receta_con_turno_llamado(entregas_realizadas=2, entregas_maximas=6)
+        respuesta = self.client.get(reverse("turnos:atencion"))
+        self.assertContains(respuesta, "Entrega 3 de 6")
+        self.assertContains(respuesta, f"Vence el {receta.fecha_vencimiento:%d-%m-%Y}")
+
+    def test_el_turno_sin_receta_no_muestra_entregas(self):
+        self.llamado_hace(segundos=10)
+        respuesta = self.client.get(reverse("turnos:atencion"))
+        self.assertNotContains(respuesta, "Entrega ")
+        self.assertNotContains(respuesta, "Vence el")
+
     def test_pasado_el_plazo_el_contador_del_panel_parte_en_cero(self):
         self.llamado_hace(segundos=settings.TURNOS_SEGUNDOS_MINIMOS_AUSENTE + 5)
         self.assertContains(self.client.get(reverse("turnos:atencion")), "faltan: 0")

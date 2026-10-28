@@ -53,6 +53,14 @@ class Paciente(models.Model):
     tiene_discapacidad = models.BooleanField("tiene discapacidad", default=False)
     esta_embarazada = models.BooleanField("está embarazada", default=False)
     es_postrado = models.BooleanField("es postrado", default=False)
+    carga = models.ForeignKey(
+        "CargaPadron",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="última carga",
+    )
 
     class Meta:
         verbose_name = "paciente"
@@ -100,6 +108,16 @@ class RecetaCronica(models.Model):
     vigencia_meses = models.PositiveSmallIntegerField("vigencia (meses)")
     entregas_maximas = models.PositiveSmallIntegerField("entregas máximas")
     entregas_realizadas = models.PositiveSmallIntegerField("entregas realizadas", default=0)
+    # Clave de la receta en Rayén. Nula en las recetas creadas a mano; la importación la exige.
+    folio = models.CharField("folio Rayén", max_length=20, unique=True, null=True, blank=True)
+    carga = models.ForeignKey(
+        "CargaPadron",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="última carga",
+    )
 
     class Meta:
         verbose_name = "receta crónica"
@@ -124,6 +142,24 @@ class RecetaCronica(models.Model):
     @property
     def es_utilizable(self):
         return not self.esta_vencida and not self.esta_agotada
+
+    @property
+    def entrega_en_curso(self):
+        """La entrega que corresponde ahora ("Entrega 3 de 6" con 2 realizadas), sin pasar del máximo."""
+        return min(self.entregas_realizadas + 1, self.entregas_maximas)
+
+    @property
+    def entregas_restantes(self):
+        return max(self.entregas_maximas - self.entregas_realizadas, 0)
+
+    @property
+    def estado(self):
+        """`vigente`, `vencida` o `agotada`: el motivo que bloquea el tótem, o que no lo bloquea."""
+        if self.esta_vencida:
+            return "vencida"
+        if self.esta_agotada:
+            return "agotada"
+        return "vigente"
 
 
 class Ventanilla(models.Model):
@@ -204,3 +240,55 @@ class Turno(models.Model):
     @property
     def es_cronico(self):
         return self.receta_id is not None
+
+
+class EstadoCarga(models.TextChoices):
+    PENDIENTE = "pendiente", "Pendiente de confirmar"
+    APLICANDO = "aplicando", "Aplicándose"
+    APLICADA = "aplicada", "Aplicada"
+    CANCELADA = "cancelada", "Cancelada"
+    DESCARTADA = "descartada", "Descartada por tiempo"
+
+
+class CargaPadron(models.Model):
+    """Bitácora de una importación del padrón y sus recetas (HU-23)."""
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cargas_padron",
+        verbose_name="subida por",
+    )
+    creada_en = models.DateTimeField("subida en", default=timezone.now)
+    aplicada_en = models.DateTimeField("aplicada en", null=True, blank=True)
+    estado = models.CharField(
+        "estado", max_length=12, choices=EstadoCarga.choices, default=EstadoCarga.PENDIENTE
+    )
+
+    nombre_archivo = models.CharField("archivo", max_length=255)
+    bytes_archivo = models.PositiveIntegerField("tamaño (bytes)")
+    huella_archivo = models.CharField("SHA-256", max_length=64)
+
+    filas_totales = models.PositiveIntegerField("filas", default=0)
+    filas_rechazadas = models.PositiveIntegerField("filas rechazadas", default=0)
+    pacientes_creados = models.PositiveIntegerField("pacientes creados", default=0)
+    pacientes_actualizados = models.PositiveIntegerField("pacientes actualizados", default=0)
+    pacientes_sin_cambios = models.PositiveIntegerField("pacientes sin cambios", default=0)
+    recetas_creadas = models.PositiveIntegerField("recetas creadas", default=0)
+    recetas_actualizadas = models.PositiveIntegerField("recetas actualizadas", default=0)
+    recetas_sin_cambios = models.PositiveIntegerField("recetas sin cambios", default=0)
+
+    # Filas válidas ya normalizadas; existe solo mientras la carga está pendiente.
+    filas_validas = models.JSONField("filas válidas", null=True, blank=True)
+    # [{"fila": 12, "rut": "12.345.678-9", "motivo": "..."}], se conserva siempre.
+    rechazos = models.JSONField("rechazos", default=list)
+    # [{"fila": 30, "folio": "R-000123", "mensaje": "..."}], por ejemplo el contador local mayor.
+    advertencias = models.JSONField("advertencias", default=list)
+
+    class Meta:
+        verbose_name = "carga del padrón"
+        verbose_name_plural = "cargas del padrón"
+        ordering = ["-creada_en"]
+
+    def __str__(self):
+        return f"Carga {self.pk} de {self.nombre_archivo} ({self.get_estado_display()})"

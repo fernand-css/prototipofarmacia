@@ -26,4 +26,11 @@ urlpatterns = [
         views.VentanillaCambiarEstadoView.as_view(),
         name="ventanilla_cambiar_estado",
     ),
+    path("padron/", views.PadronView.as_view(), name="padron"),
+    path("padron/plantilla/", views.PadronPlantillaView.as_view(), name="padron_plantilla"),
+    path("padron/<int:pk>/", views.PadronCargaView.as_view(), name="padron_carga"),
+    path("padron/<int:pk>/confirmar/", views.PadronConfirmarView.as_view(), name="padron_confirmar"),
+    path("padron/<int:pk>/cancelar/", views.PadronCancelarView.as_view(), name="padron_cancelar"),
+    path("padron/<int:pk>/rechazos.csv", views.PadronRechazosView.as_view(), name="padron_rechazos"),
+    path("recetas/", views.RecetasView.as_view(), name="recetas"),
 ]

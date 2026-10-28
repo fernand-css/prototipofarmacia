@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block titulo %}Padrón y recetas{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Padrón y recetas</h1>
+    <p class="subtitulo">Pacientes crónicos y postrados con sus recetas vigentes, desde un archivo exportado de Rayén.</p>
+  </div>
+  <a class="boton boton--secundario" href="{% url 'turnos:padron_plantilla' %}">Descargar plantilla</a>
+</div>
+
+<section class="tarjeta tarjeta--formulario" aria-labelledby="titulo-subida">
+  <h2 id="titulo-subida" class="padron__titulo">Cargar un archivo</h2>
+  <p class="padron__nota">Antes de guardar nada verá cuántos pacientes y recetas se crean, se actualizan o se rechazan.</p>
+  <form method="post" enctype="multipart/form-data" class="formulario-en-linea" x-data="envio" @submit="enviar($event)">
+    {% csrf_token %}
+    {% for campo in formulario %}
+      {% include "includes/campo.html" %}
+    {% endfor %}
+    <button type="submit" class="boton" :disabled="enviando">Revisar archivo</button>
+  </form>
+</section>
+
+<section class="grupo" aria-labelledby="titulo-bitacora">
+  <h2 class="grupo__titulo" id="titulo-bitacora">
+    Cargas anteriores <span class="grupo__cuenta">{{ cargas|length }}</span>
+  </h2>
+  {% if cargas|length == cargas_en_bitacora %}
+    <p class="grupo__nota">Se muestran las {{ cargas_en_bitacora }} más recientes.</p>
+  {% endif %}
+  {% if cargas %}
+    <ul class="lista lista--cargas">
+      {% for carga in cargas %}
+        <li class="lista__fila{% if carga.estado == 'cancelada' or carga.estado == 'descartada' %} lista__fila--apagada{% endif %}">
+          <div class="lista__datos">
+            <p class="lista__nombre">
+              {{ carga.nombre_archivo }}
+              <span class="insignia insignia--{{ carga.estado }}">{{ carga.get_estado_display }}</span>
+            </p>
+            <p class="lista__detalle">
+              Subida el {{ carga.creada_en|date:"d-m-Y" }} a las {{ carga.creada_en|time:"H:i" }} por {{ carga.usuario.nombre_completo }}.
+              {{ carga.filas_totales }} fila{{ carga.filas_totales|pluralize }}, {{ carga.filas_rechazadas }} rechazada{{ carga.filas_rechazadas|pluralize }}.
+              {% if carga.estado == "aplicada" %}
+                Nuevos: {{ carga.pacientes_creados }} paciente{{ carga.pacientes_creados|pluralize }} y {{ carga.recetas_creadas }} receta{{ carga.recetas_creadas|pluralize }}.
+              {% endif %}
+            </p>
+          </div>
+          <div class="lista__acciones">
+            <a class="boton boton--texto" href="{% url 'turnos:padron_carga' carga.pk %}">
+              {% if carga.estado == "pendiente" %}Revisar{% else %}Ver reporte{% endif %}
+            </a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="lista__vacia">Todavía no hay cargas. Descargue la plantilla o use el archivo exportado de Rayén.</p>
+  {% endif %}
+</section>
+{% endblock %}

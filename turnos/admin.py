@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from turnos.forms import PacienteAdminForm
-from turnos.models import Paciente, RecetaCronica, Turno, Ventanilla
+from turnos.models import CargaPadron, Paciente, RecetaCronica, Turno, Ventanilla
 
 
 class RecetaCronicaInline(admin.TabularInline):
@@ -19,9 +19,11 @@ class PacienteAdmin(admin.ModelAdmin):
 
 @admin.register(RecetaCronica)
 class RecetaCronicaAdmin(admin.ModelAdmin):
-    list_display = ("paciente", "fecha_emision", "vigencia_meses", "entregas_realizadas", "entregas_maximas")
+    list_display = (
+        "folio", "paciente", "fecha_emision", "vigencia_meses", "entregas_realizadas", "entregas_maximas"
+    )
     list_select_related = ("paciente",)
-    search_fields = ("paciente__rut", "paciente__apellidos")
+    search_fields = ("folio", "paciente__rut", "paciente__apellidos")
 
 
 @admin.register(Ventanilla)
@@ -35,3 +37,24 @@ class TurnoAdmin(admin.ModelAdmin):
     list_filter = ("fecha", "estado", "categoria")
     search_fields = ("rut",)
     date_hierarchy = "fecha"
+
+
+@admin.register(CargaPadron)
+class CargaPadronAdmin(admin.ModelAdmin):
+    """Bitácora de importaciones: solo lectura, la carga se hace desde /padron/."""
+
+    list_display = (
+        "creada_en", "usuario", "nombre_archivo", "estado", "filas_totales", "filas_rechazadas"
+    )
+    list_filter = ("estado",)
+    list_select_related = ("usuario",)
+    date_hierarchy = "creada_en"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

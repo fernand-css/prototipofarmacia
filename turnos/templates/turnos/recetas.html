@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load rut %}
+
+{% block titulo %}Recetas{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Recetas</h1>
+    <p class="subtitulo">Cuántas entregas lleva y le quedan a cada receta crónica de un paciente.</p>
+  </div>
+</div>
+
+<section class="tarjeta tarjeta--formulario" aria-label="Buscar por RUT">
+  <form method="post" action="{% url 'turnos:recetas' %}" class="formulario-en-linea">
+    {% csrf_token %}
+    {% for campo in formulario %}
+      {% include "includes/campo.html" %}
+    {% endfor %}
+    <button type="submit" class="boton">Buscar</button>
+  </form>
+</section>
+
+{% if buscado %}
+  {% if paciente %}
+    <section class="grupo" aria-labelledby="titulo-paciente">
+      <h2 class="grupo__titulo" id="titulo-paciente">
+        {{ paciente.nombre_completo }} <span class="grupo__cuenta">{{ paciente.rut|rut_legible }}</span>
+      </h2>
+      {% if recetas %}
+        <ul class="lista">
+          {% for receta in recetas %}
+            <li class="lista__fila{% if receta.estado != 'vigente' %} lista__fila--apagada{% endif %}">
+              <div class="lista__datos">
+                <p class="lista__nombre">
+                  {% if receta.folio %}Receta {{ receta.folio }}{% else %}Receta sin folio{% endif %}
+                  <span class="insignia insignia--{{ receta.estado }}">{{ receta.estado|capfirst }}</span>
+                </p>
+                <p class="lista__detalle">
+                  {{ receta.entregas_realizadas }} de {{ receta.entregas_maximas }} entregas realizadas, queda{{ receta.entregas_restantes|pluralize:"n" }} {{ receta.entregas_restantes }}.
+                  Emitida el {{ receta.fecha_emision|date:"d-m-Y" }}, vence el {{ receta.fecha_vencimiento|date:"d-m-Y" }}.
+                </p>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="lista__vacia">No hay recetas registradas para este RUT.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <p class="lista__vacia">No hay recetas registradas para este RUT.</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

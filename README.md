@@ -8,7 +8,8 @@ Este sistema busca modernizar la entrega de números de atención, proporcionand
 
 * **Generación de Tickets:** Creación rápida de números de atención para los pacientes al ingresar al recinto.
 * **Módulo de Pantalla (Sala de Espera):** Pantalla pública con el último turno llamado y su ventanilla, y los llamados anteriores del día. Se actualiza sola cada 2 segundos y avisa cada llamado nuevo con un resalte y, si se activa, con una campanilla y la voz. No muestra datos personales.
-* **Panel de Funcionario:** Interfaz para que el personal de salud pueda llamar al siguiente paciente en la fila, pausar atenciones o derivar.
+* **Panel de Funcionario:** Interfaz para que el personal de salud pueda llamar al siguiente paciente en la fila, pausar atenciones o derivar. Si el paciente trae una receta crónica, muestra en qué entrega va («Entrega 3 de 6») y cuándo vence.
+* **Padrón y recetas de Rayén:** La Química Farmacéutica carga un archivo CSV o Excel con los pacientes crónicos y postrados y sus recetas vigentes, revisa una vista previa (qué se crea, qué se actualiza y qué filas se rechazan, con su motivo) y recién entonces la aplica. Así no se digita cada receta en dos sistemas.
 * **Historial Básico:** Registro de tiempos de emisión y atención para métricas futuras.
 
 ## 🛠️ Tecnologías Utilizadas
@@ -64,15 +65,53 @@ Sigue estos pasos para ejecutar el proyecto en tu entorno de desarrollo local.
 | `/totem/` | Público, sin login | Tótem donde el paciente digita su RUT y recibe su turno (se puede imprimir) |
 | `/sala/` | Público, sin login | Pantalla de la sala de espera: último llamado, llamados anteriores y anuncio con voz |
 | `/atencion/` | Funcionario y QF | Panel de atención: abrir ventanilla, llamar, re-llamar, iniciar, finalizar, ausente, turno de urgencia y fila de espera |
+| `/recetas/` | Funcionario y QF | Recetas crónicas de un RUT: entregas realizadas y restantes, vencimiento y estado |
 | `/ventanillas/` | QF | Crear, habilitar y deshabilitar ventanillas |
+| `/padron/` | QF | Cargar el padrón y las recetas vigentes desde un archivo de Rayén, con vista previa y bitácora |
 | `/usuarios/` | QF | Gestión de cuentas |
-| `/admin/` | Acceso técnico | Pacientes y recetas simulados, y corrección de turnos |
+| `/admin/` | Acceso técnico | Correcciones puntuales de pacientes, recetas y turnos |
 
 ### Cómo se ordena la fila
 
 El paciente solo digita su RUT y el sistema deduce su categoría: **preferencial** (60 años o más, discapacidad o embarazo), **general** en otro caso, y **urgencia**, que emite un funcionario desde el panel. Los pacientes de despacho a domicilio (postrados o mayores de 80 años) reciben un aviso, y quienes tienen recetas crónicas vencidas o con las entregas agotadas son derivados al mesón para su renovación.
 
 Al llamar, la urgencia va primero y luego se intercalan **2 generales por cada preferencial** (se ajusta con `TURNOS_GENERALES_POR_PREFERENCIAL` en `farmacia_turnos/settings.py`); dentro de cada categoría manda el orden de llegada. Un paciente marcado como ausente (se habilita 60 segundos después del último llamado) debe sacar un turno nuevo.
+
+### Padrón y recetas de Rayén
+
+Rayén no ofrece una integración, así que los pacientes crónicos y postrados y sus recetas vigentes se cargan desde un archivo exportado. En «Padrón» (solo la Química Farmacéutica):
+
+1. **Prepara el archivo.** Se acepta `.csv` (separado por `;` o `,`, en UTF-8 o en la codificación con que guarda Excel en Windows) o `.xlsx` (se lee la primera hoja), de hasta 5 MB y 5.000 filas. «Descargar plantilla» entrega un CSV con los encabezados y una fila de ejemplo.
+2. **Súbelo con «Revisar archivo».** Todavía no se guarda nada: el sistema muestra cuántos pacientes y recetas se crean, se actualizan o quedan sin cambios, las primeras filas (para ver que las tildes y la «ñ» se lean bien) y cada fila rechazada con su motivo. Los rechazos se pueden descargar en CSV.
+3. **Aplica la carga** antes de una hora, o cancélala. Pasada la hora se descarta y hay que subir el archivo de nuevo.
+
+Columnas (la primera fila son los encabezados; no importan mayúsculas, tildes ni el orden, y las columnas extra se ignoran):
+
+| Columna | Obligatoria | Formato |
+| --- | --- | --- |
+| `rut` | Sí | Con o sin puntos y guion |
+| `nombres`, `apellidos` | Sí | Texto, hasta 100 caracteres |
+| `fecha_nacimiento` | Sí | `dd-mm-aaaa`, `dd/mm/aaaa`, `aaaa-mm-dd` o fecha de Excel |
+| `discapacidad`, `embarazada`, `postrado` | No | `si`, `no`, `1`, `0` o vacía (vacía es no) |
+| `folio` | Si hay receta | El folio de la receta en Rayén, hasta 20 caracteres sin espacios |
+| `fecha_emision` | Si hay receta | Igual que `fecha_nacimiento` |
+| `vigencia_meses`, `entregas_maximas` | Si hay receta | Entero de 1 a 24 |
+| `entregas_realizadas` | No | Entero de 0 al máximo; vacía es 0 |
+
+Cada fila es un paciente con a lo sumo una receta: un paciente con dos recetas va en dos filas con los mismos datos, y uno sin receta va con esas columnas vacías. Reglas de la carga:
+
+* El paciente se reconoce por su RUT y la receta por su folio. Lo que ya existe se actualiza con lo que trae el archivo, y **lo que no viene en el archivo no se toca** (no se borra ni se desactiva).
+* **El contador de entregas nunca baja:** si el sistema registra más entregas que el archivo, se conservan las del sistema y la vista previa lo advierte.
+* **Una renovación médica es una receta con folio nuevo.** Al cargarla, el tótem vuelve a dar turno al paciente que estaba bloqueado.
+* Las filas inválidas no detienen la carga de las válidas. Un archivo sin alguna columna obligatoria, demasiado grande o ilegible se rechaza entero.
+* El archivo subido no se guarda en el servidor. La bitácora conserva quién lo subió, cuándo, su nombre, tamaño y huella, y el resultado.
+
+Para probar sin datos reales, `generar_padron_sintetico` escribe un padrón inventado de 670 pacientes (70 postrados y 600 mayores de 80 años, con 1 o 2 recetas cada uno) más 10 filas inválidas a propósito:
+
+```bash
+python manage.py generar_padron_sintetico --salida padron.csv      # o padron.xlsx
+python manage.py generar_padron_sintetico --salida padron.csv --pacientes 50 --invalidas 4 --semilla 2
+```
 
 ### Pantalla de la sala de espera
 
@@ -100,5 +139,13 @@ Con los datos de demostración, en un solo equipo:
 3. En otra ventana, abre <http://127.0.0.1:8000/totem/> y digita uno de los RUT de prueba que imprimió `cargar_datos_demo`: el tótem entrega el número de turno.
 4. En otra ventana normal, inicia sesión en <http://127.0.0.1:8000/> con la cuenta de la Química Farmacéutica (o de un funcionario), entra a «Atención», elige una ventanilla y pulsa «Llamar siguiente».
 5. En unos 2 segundos la sala muestra el número y la ventanilla, la tarjeta pulsa, aparece «Nuevo llamado» y se anuncia con la voz.
+
+### Demostración: del padrón al panel
+
+1. `python manage.py cargar_datos_demo` y `python manage.py generar_padron_sintetico --salida padron.csv`.
+2. Con la cuenta de la Química Farmacéutica, entra a «Padrón», sube `padron.csv` con «Revisar archivo» y revisa la vista previa: 670 pacientes y 1.009 recetas nuevos, y 10 filas rechazadas con su motivo. Pulsa «Aplicar carga».
+3. En «Recetas», busca el RUT 10.000.008-3 (Agustín, paciente de demostración con la receta agotada): su receta dice «Agotada» y el tótem no le da turno.
+4. Descarga la plantilla y reemplaza la fila de ejemplo por una de ese paciente con un **folio nuevo** (la receta renovada), con `entregas_realizadas` en 0. Súbela y aplícala: ahora `/totem/` le entrega un turno.
+5. Llámalo desde «Atención»: el turno en curso muestra «Entrega 1 de» las entregas máximas que pusiste, y la fecha de vencimiento.
 
 Cada cambio de alcance está documentado en `specs/`.

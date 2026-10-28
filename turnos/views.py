@@ -1,7 +1,9 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.contrib import messages
-from django.http import Http404, JsonResponse
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import never_cache
@@ -9,9 +11,19 @@ from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import ListView
 
 from cuentas.mixins import SondeoAutomatico, SoloQF
-from turnos.forms import RutForm
+from turnos.forms import CargaPadronForm, RutForm
+from turnos.importacion import (
+    ErrorDeArchivo,
+    ErrorDeCarga,
+    cancelar_carga,
+    confirmar_carga,
+    csv_de_plantilla,
+    csv_de_rechazos,
+    descartar_cargas_vencidas,
+    preparar_carga,
+)
 from turnos.mixins import SoloAtencion
-from turnos.models import Categoria, EstadoTurno, Ventanilla
+from turnos.models import CargaPadron, Categoria, EstadoCarga, EstadoTurno, Paciente, Ventanilla
 from turnos.servicios import (
     ErrorDeAtencion,
     TipoResultado,
@@ -123,6 +135,124 @@ class VentanillaCambiarEstadoView(SoloQF, View):
             estado = "habilitada" if ventanilla.habilitada else "deshabilitada"
             messages.success(request, f"La ventanilla {ventanilla.numero} fue {estado}.")
         return redirect("turnos:ventanillas")
+
+
+# --- Padrón y recetas de Rayén (solo la QF) -----------------------------------------------------
+
+CARGAS_EN_BITACORA = 50  # cuántas cargas lista /padron/, de la más reciente a la más antigua
+RECHAZOS_EN_PANTALLA = 100  # el resto se ve en el CSV descargable
+MUESTRA_DE_FILAS = 5  # filas que la vista previa muestra para revisar nombres y tildes
+
+
+def _csv_descargable(contenido, nombre):
+    respuesta = HttpResponse(contenido, content_type="text/csv; charset=utf-8")
+    respuesta["Content-Disposition"] = f'attachment; filename="{nombre}"'
+    return respuesta
+
+
+class PadronView(SoloQF, View):
+    template_name = "turnos/padron.html"
+
+    def get(self, request):
+        return self.mostrar(request, CargaPadronForm())
+
+    def post(self, request):
+        formulario = CargaPadronForm(request.POST, request.FILES)
+        if formulario.is_valid():
+            try:
+                carga = preparar_carga(formulario.cleaned_data["archivo"], request.user)
+            except ErrorDeArchivo as error:
+                formulario.add_error("archivo", str(error))
+            else:
+                return redirect("turnos:padron_carga", pk=carga.pk)
+        return self.mostrar(request, formulario)
+
+    def mostrar(self, request, formulario):
+        descartar_cargas_vencidas()
+        cargas = CargaPadron.objects.select_related("usuario")[:CARGAS_EN_BITACORA]
+        return render(request, self.template_name, {
+            "formulario": formulario,
+            "cargas": cargas,
+            "cargas_en_bitacora": CARGAS_EN_BITACORA,
+        })
+
+
+class PadronPlantillaView(SoloQF, View):
+    def get(self, request):
+        return _csv_descargable(csv_de_plantilla(), "plantilla-padron.csv")
+
+
+class PadronCargaView(SoloQF, View):
+    def get(self, request, pk):
+        descartar_cargas_vencidas()
+        carga = get_object_or_404(CargaPadron.objects.select_related("usuario"), pk=pk)
+        pendiente = carga.estado == EstadoCarga.PENDIENTE
+        return render(request, "turnos/padron_carga.html", {
+            "carga": carga,
+            "pendiente": pendiente,
+            "vence_en": carga.creada_en + timedelta(minutes=settings.TURNOS_PADRON_MINUTOS_PENDIENTE),
+            "muestra": (carga.filas_validas or [])[:MUESTRA_DE_FILAS] if pendiente else [],
+            "rechazos": carga.rechazos[:RECHAZOS_EN_PANTALLA],
+            "rechazos_ocultos": max(0, len(carga.rechazos) - RECHAZOS_EN_PANTALLA),
+        })
+
+
+class PadronConfirmarView(SoloQF, View):
+    def post(self, request, pk):
+        carga = get_object_or_404(CargaPadron, pk=pk)
+        try:
+            carga = confirmar_carga(carga, request.user)
+        except ErrorDeCarga as error:
+            messages.warning(request, str(error))
+        else:
+            messages.success(
+                request,
+                f"Carga aplicada: {carga.pacientes_creados} pacientes y {carga.recetas_creadas} recetas "
+                f"nuevos, {carga.pacientes_actualizados} pacientes y {carga.recetas_actualizadas} "
+                "recetas actualizados.",
+            )
+        return redirect("turnos:padron_carga", pk=pk)
+
+
+class PadronCancelarView(SoloQF, View):
+    def post(self, request, pk):
+        carga = get_object_or_404(CargaPadron, pk=pk)
+        try:
+            cancelar_carga(carga)
+        except ErrorDeCarga as error:
+            messages.warning(request, str(error))
+        else:
+            messages.success(request, "Carga cancelada: no se guardó ningún paciente ni receta.")
+        return redirect("turnos:padron")
+
+
+class PadronRechazosView(SoloQF, View):
+    def get(self, request, pk):
+        carga = get_object_or_404(CargaPadron, pk=pk)
+        return _csv_descargable(csv_de_rechazos(carga), f"rechazos-carga-{carga.pk}.csv")
+
+
+# --- Consulta de recetas (funcionario y QF) ----------------------------------------------------
+
+
+class RecetasView(SoloAtencion, View):
+    """Recetas crónicas de un RUT con su avance (HU-21). La búsqueda va por POST: así el RUT no
+    queda en la URL, ni en el historial del equipo compartido del mesón."""
+
+    template_name = "turnos/recetas.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {"formulario": RutForm()})
+
+    def post(self, request):
+        formulario = RutForm(request.POST)
+        contexto = {"formulario": formulario}
+        if formulario.is_valid():
+            paciente = Paciente.objects.filter(rut=formulario.cleaned_data["rut"]).first()
+            contexto["buscado"] = True
+            contexto["paciente"] = paciente
+            contexto["recetas"] = paciente.recetas.order_by("-fecha_emision") if paciente else []
+        return render(request, self.template_name, contexto)
 
 
 # --- Panel de atención (funcionario y QF) -------------------------------------------------------

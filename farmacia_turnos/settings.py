@@ -156,6 +156,11 @@ TURNOS_SEGUNDOS_VIGENCIA_ANUNCIO = 30        # un llamado más antiguo que esto 
 TURNOS_SEGUNDOS_REINTENTO_MAXIMO_SALA = 30   # tope de la espera entre reintentos sin conexión
 TURNOS_SEGUNDOS_RESALTE_SALA = 10            # cuánto dura la etiqueta «Nuevo llamado»
 
+# Importación del padrón y recetas vigentes (spec 04).
+TURNOS_PADRON_BYTES_MAXIMOS = 5 * 1024 * 1024
+TURNOS_PADRON_FILAS_MAXIMAS = 5000           # sin contar el encabezado
+TURNOS_PADRON_MINUTOS_PENDIENTE = 60         # una carga sin confirmar se descarta pasado este plazo
+
 # Las pruebas crean muchas cuentas y el hash de producción (PBKDF2) tarda unos 0,4 s por cada una:
 # con uno rápido la suite baja de minutos a segundos. Solo se usa al correr `manage.py test`.
 if "test" in sys.argv:

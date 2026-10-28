@@ -54,8 +54,11 @@ class Command(BaseCommand):
                     **banderas,
                 },
             )
+            if not receta:
+                continue
+            folio = f"DEMO-{cuerpo[-3:]}"
             # Las recetas se crean una sola vez: no se pisan los contadores ya avanzados.
-            if receta and not paciente.recetas.exists():
+            if not paciente.recetas.exists():
                 meses, vigencia, maximas, realizadas = receta
                 RecetaCronica.objects.create(
                     paciente=paciente,
@@ -63,7 +66,14 @@ class Command(BaseCommand):
                     vigencia_meses=vigencia,
                     entregas_maximas=maximas,
                     entregas_realizadas=realizadas,
+                    folio=folio,
                 )
+            elif not RecetaCronica.objects.filter(folio=folio).exists():
+                # Recetas de demostración creadas antes de que existiera el folio.
+                sin_folio = paciente.recetas.filter(folio__isnull=True).first()
+                if sin_folio:
+                    sin_folio.folio = folio
+                    sin_folio.save(update_fields=["folio"])
 
         self.stdout.write(self.style.SUCCESS(
             f"Listo: {Ventanilla.objects.count()} ventanillas, "
