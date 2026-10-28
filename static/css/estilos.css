@@ -1086,7 +1086,10 @@ a { color: var(--primario-oscuro); }
    Pantalla pública de un televisor, que se lee de lejos: el último llamado en grande sobre papel
    de turno (en la sala, "es su turno" es literal) y los anteriores en una lista sobria. Sin forma
    de ticket: la sala no entrega un papel. Negro sobre blanco o amarillo, como el tótem, y todo
-   en `em` para que el tamaño completo siga al de la pantalla. */
+   en `em` para que el tamaño completo siga al de la pantalla.
+   Dos colores, dos preguntas del paciente: el papel amarillo dice quién (su número) y la placa
+   verde petróleo dice adónde (la ventanilla), como el letrero numerado sobre cada mesón. La placa
+   va siempre junto a la palabra «Ventanilla»: el color nunca es el único indicador. */
 /* En un televisor horizontal (16:9) manda el ancho: con 1,25vw el número del último llamado cabe
    en su columna, y el alto queda con holgura para la barra inferior. */
 .pagina-sala {
@@ -1141,14 +1144,20 @@ a { color: var(--primario-oscuro); }
 
 .sala__llamado {
   position: relative;
-  padding: 1em 1.5em;
-  border: 0.15em solid var(--papel-borde);
+  overflow: hidden;
+  border: 0.15em solid var(--primario-oscuro);
   border-radius: 0.6em;
   background: var(--papel);
 }
 
+/* El número ocupa el papel; la ventanilla, la franja de abajo. */
 .sala__numero {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
   margin: 0;
+  padding: 0 0.1em;
   font-size: 13em;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -1160,8 +1169,25 @@ a { color: var(--primario-oscuro); }
 /* Un número de cuatro cifras ("G-1000") se achica para caber en una línea. */
 .sala__numero--largo { font-size: 10.5em; }
 
-.sala__ventanilla { margin: 0.3em 0 0; font-size: 4.5em; font-weight: 700; line-height: 1.1; white-space: nowrap; }
-.sala__ventanilla-numero { font-weight: 800; font-variant-numeric: tabular-nums; }
+/* La placa de la ventanilla, a todo el ancho bajo el papel: el número de la ventanilla manda
+   sobre la palabra, que solo lo rotula. */
+.sala__ventanilla {
+  display: flex;
+  align-self: stretch;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3em;
+  margin: 0;
+  padding: 0.15em 0.5em 0.2em;
+  background: var(--primario-oscuro);
+  color: #fff;
+  font-size: 4.5em;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.sala__ventanilla-numero { font-size: 1.45em; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 /* El último llamado pulsa al llegar: 3 pulsos lentos, uno por segundo, bajo el umbral de 3
    destellos por segundo. En la sala nadie mira la pantalla cuando llega un llamado, y el
@@ -1170,8 +1196,8 @@ a { color: var(--primario-oscuro); }
 .sala__llamado--pulso { animation: sala-llamado 1s ease-in-out 3; }
 
 @keyframes sala-llamado {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(138, 106, 0, 0); }
-  50% { transform: scale(1.02); box-shadow: 0 0 0 0.6em rgba(138, 106, 0, 0.35); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 216, 77, 0); }
+  50% { transform: scale(1.02); box-shadow: 0 0 0 0.6em rgba(255, 216, 77, 0.75); }
 }
 
 /* "Nuevo llamado" en texto: el aviso no depende del movimiento ni del color. */
@@ -1189,20 +1215,32 @@ a { color: var(--primario-oscuro); }
 /* En la tarjeta va arriba y fuera del flujo, así el número no se mueve cuando la etiqueta se va. */
 .sala__llamado .sala__nuevo { position: absolute; top: 0.6em; left: 50%; font-size: 2em; transform: translateX(-50%); }
 
-/* Sin llamados todavía: sin papel, porque no es el turno de nadie. */
+/* Sin llamados todavía: sin papel ni placa, porque no es el turno de nadie. */
 .sala__vacio {
-  padding: 0.5em;
-  border: 0.05em solid var(--gris-borde);
-  border-radius: 0.2em;
+  gap: 0.6em;
+  padding: 1em 2em;
+  border: 0.15em solid var(--gris-borde);
+  border-radius: 0.6em;
   background: var(--gris-fondo);
   color: var(--texto-suave);
-  font-size: 3em;
-  font-weight: 700;
 }
+
+.sala__vacio p { margin: 0; }
+.sala__vacio-titulo { color: var(--texto); font-size: 3.5em; font-weight: 800; line-height: 1.1; }
+.sala__vacio-texto { max-width: 24em; font-size: 1.75em; line-height: 1.35; }
 
 .sala__anteriores .sala__rotulo { padding-bottom: 0.3em; border-bottom: 0.08em solid #000; }
 
-.sala__lista { margin: 0; padding: 0; list-style: none; }
+/* Siempre cuatro filas del mismo alto, que llenan la columna: la lista no deja un hueco abajo ni
+   cambia de forma a medida que llegan los llamados del día. */
+.sala__lista {
+  display: grid;
+  flex: 1;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 
 /* Número a la izquierda y ventanilla a la derecha; "Nuevo llamado", si lo lleva, en su propia línea
    encima, para que la fila no se desordene. */
@@ -1210,17 +1248,39 @@ a { color: var(--primario-oscuro); }
   display: grid;
   grid-template-areas: "nuevo nuevo" "numero ventanilla";
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
+  align-content: center;
+  align-items: center;
   column-gap: 1em;
-  padding: 0.5em 0.3em;
+  padding: 0.4em 0.3em;
   border-bottom: 0.08em solid var(--gris-borde);
 }
 
 .sala__fila .sala__nuevo { grid-area: nuevo; justify-self: start; margin-bottom: 0.2em; font-size: 1.2em; }
 .sala__fila-numero, .sala__fila-ventanilla { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sala__fila-numero { grid-area: numero; font-size: 4.5em; font-weight: 800; line-height: 1.1; }
-.sala__fila-numero--largo { font-size: 3.6em; }
-.sala__fila-ventanilla { grid-area: ventanilla; font-size: 2.1em; font-weight: 700; }
+.sala__fila-numero { grid-area: numero; font-size: 5em; font-weight: 800; line-height: 1.1; }
+.sala__fila-numero--largo { font-size: 4em; }
+
+.sala__fila-ventanilla {
+  display: flex;
+  grid-area: ventanilla;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 1.6em;
+  font-weight: 700;
+}
+
+/* La misma placa de la ventanilla, en chico: un ancho fijo alinea las cuatro en columna. */
+.sala__placa {
+  min-width: 1.6em;
+  padding: 0.05em 0.25em;
+  border-radius: 0.15em;
+  background: var(--primario-oscuro);
+  color: #fff;
+  font-size: 1.7em;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+}
 
 /* Barra inferior: si se cortó la conexión, el aviso de que lo que se ve puede no estar al día; a
    la derecha, la voz. Con todos sus avisos a la vez cabe en una línea a 1366×768. */
