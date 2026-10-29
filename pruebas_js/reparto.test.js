@@ -6,7 +6,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { leerCoordenadas, puntoDeLosCampos } = require('../static/js/reparto.js');
+const { leerCoordenadas, puntoDeLosCampos, distanciaEnMetros, textoDistancia } = require('../static/js/reparto.js');
 
 test('lee una coordenada con punto o con coma decimal', () => {
   assert.deepEqual(leerCoordenadas('-36.4999'), [-36.4999]);
@@ -50,4 +50,22 @@ test('sin un punto completo y válido no hay marcador', () => {
   assert.equal(puntoDeLosCampos('-91', '-72.2'), null);
   assert.equal(puntoDeLosCampos('-36.5', '-181'), null);
   assert.equal(puntoDeLosCampos('sur', '-72.2'), null);
+});
+
+test('mide la distancia en línea recta entre dos puntos', () => {
+  assert.equal(distanciaEnMetros([-36.5, -72.2], [-36.5, -72.2]), 0);
+  // Un grado de latitud son unos 111,2 km en cualquier parte.
+  assert.ok(Math.abs(distanciaEnMetros([-36, -72.2], [-37, -72.2]) - 111195) < 10);
+  // Del centro de San Nicolás a Camino a Dadinco km 4: unos 2,3 km.
+  const metros = distanciaEnMetros([-36.4999, -72.2128], [-36.481234, -72.198765]);
+  assert.ok(metros > 2300 && metros < 2500, metros);
+});
+
+test('redondea la distancia a lo que sirve para orientarse', () => {
+  assert.equal(textoDistancia(3), '10 m');
+  assert.equal(textoDistancia(347), '350 m');
+  assert.equal(textoDistancia(997), '1 km');
+  assert.equal(textoDistancia(1234), '1,2 km');
+  assert.equal(textoDistancia(2000), '2 km');
+  assert.equal(textoDistancia(12600), '13 km');
 });

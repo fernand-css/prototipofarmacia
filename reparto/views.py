@@ -43,6 +43,22 @@ def _por_sector(pacientes):
     return grupos
 
 
+def _puntos(pacientes):
+    """Los domicilios con coordenadas de la lista, para los marcadores del mapa (va con json_script)."""
+    return [
+        {
+            "id": p.pk,
+            "latitud": float(p.domicilio.latitud),
+            "longitud": float(p.domicilio.longitud),
+            "estado": p.domicilio.estado,
+            "direccion": p.domicilio.direccion,
+            "url": reverse("reparto:ficha", args=[p.pk]),
+        }
+        for p in pacientes
+        if hasattr(p, "domicilio") and p.domicilio.tiene_coordenadas
+    ]
+
+
 class DomiciliosView(ConsultaDomicilios, View):
     """Lista de los pacientes con despacho a domicilio y el estado de su domicilio (HU-12, IG04).
 
@@ -73,11 +89,15 @@ class DomiciliosView(ConsultaDomicilios, View):
 
     def contexto(self, request, formulario, busqueda=None):
         filtros = self.filtros(request)
+        pacientes = pacientes_de_despacho(busqueda=busqueda, **filtros)
         return {
             "formulario": formulario,
             "buscado": busqueda is not None,
             "filtrado": any(filtros.values()),
-            "grupos": _por_sector(pacientes_de_despacho(busqueda=busqueda, **filtros)),
+            "total": len(pacientes),
+            "grupos": _por_sector(pacientes),
+            "puntos": _puntos(pacientes),
+            **_mapa(),
             "resumen": resumen_de_verificacion(),
             "opciones_sector": self.opciones(filtros, "sector", Sector.choices),
             "opciones_estado": self.opciones(filtros, "estado", ESTADOS_DE_LISTA),
