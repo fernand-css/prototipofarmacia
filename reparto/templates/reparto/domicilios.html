@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load rut %}
+
+{% block titulo %}Domicilios{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Domicilios</h1>
+    <p class="subtitulo">Pacientes con despacho a domicilio: postrados y mayores de 80 años.</p>
+  </div>
+</div>
+
+{# Indicador IG04: la meta es tener todos los domicilios registrados verificados en terreno. #}
+<section class="avance" aria-labelledby="titulo-avance">
+  <h2 id="titulo-avance" class="avance__cifra">
+    <strong>{{ resumen.verificados }}</strong> de {{ resumen.registrados }} domicilio{{ resumen.registrados|pluralize }} verificado{{ resumen.registrados|pluralize }} en terreno ({{ resumen.porcentaje }} %)
+  </h2>
+  <div class="avance__barra" aria-hidden="true"><span style="width: {{ resumen.porcentaje }}%"></span></div>
+  {% if resumen.sin_direccion %}
+    <p class="avance__nota"><strong>{{ resumen.sin_direccion }}</strong> paciente{{ resumen.sin_direccion|pluralize }} todavía sin dirección.</p>
+  {% endif %}
+</section>
+
+<section class="tarjeta tarjeta--formulario" aria-label="Buscar por RUT o apellido">
+  <form method="post" action="{{ request.get_full_path }}" class="formulario-en-linea">
+    {% csrf_token %}
+    {% for campo in formulario %}
+      {% include "includes/campo.html" %}
+    {% endfor %}
+    <button type="submit" class="boton">Buscar</button>
+  </form>
+</section>
+
+<nav class="filtros" aria-label="Filtrar domicilios">
+  <div class="filtros__grupo">
+    <span class="filtros__titulo" id="filtro-sector">Sector</span>
+    <ul class="filtros__opciones" aria-labelledby="filtro-sector">
+      {% for opcion in opciones_sector %}
+        <li><a href="{{ opcion.url }}" class="filtros__opcion"{% if opcion.activo %} aria-current="true"{% endif %}>{{ opcion.etiqueta }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="filtros__grupo">
+    <span class="filtros__titulo" id="filtro-estado">Estado</span>
+    <ul class="filtros__opciones" aria-labelledby="filtro-estado">
+      {% for opcion in opciones_estado %}
+        <li><a href="{{ opcion.url }}" class="filtros__opcion"{% if opcion.activo %} aria-current="true"{% endif %}>{{ opcion.etiqueta }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</nav>
+
+{% if buscado %}
+  <p class="domicilios__busqueda">Resultado de la búsqueda. <a href="{{ request.get_full_path }}">Ver todos</a></p>
+{% endif %}
+
+{% for grupo in grupos %}
+  <section class="sector" aria-labelledby="sector-{{ forloop.counter }}">
+    <h2 class="sector__titulo" id="sector-{{ forloop.counter }}">
+      {{ grupo.titulo }}
+      <span class="sector__cuenta">
+        {% if grupo.registrados %}{{ grupo.verificados }} de {{ grupo.registrados }} verificado{{ grupo.verificados|pluralize }}{% endif %}{% if grupo.registrados and grupo.sin_direccion %}, {% endif %}{% if grupo.sin_direccion %}{{ grupo.sin_direccion }} sin dirección{% endif %}
+      </span>
+    </h2>
+    <ul class="lista lista--domicilios">
+      {% for paciente in grupo.pacientes %}
+        {% with domicilio=paciente.domicilio %}
+          <li class="lista__fila domicilio">
+            <a class="domicilio__enlace" href="{% url 'reparto:ficha' paciente.pk %}">
+              <span class="domicilio__direccion">
+                {% if domicilio %}{{ domicilio.direccion }}{% else %}Sin dirección registrada{% endif %}
+              </span>
+              <span class="domicilio__paciente">{{ paciente.nombre_completo }}</span>
+            </a>
+            {% if not domicilio %}
+              <span class="insignia insignia--sin_direccion">Sin dirección</span>
+            {% else %}
+              <span class="insignia insignia--{{ domicilio.estado }}">{{ domicilio.get_estado_display }}</span>
+            {% endif %}
+            <p class="domicilio__detalle">
+              {{ paciente.rut|rut_legible }}. {% if paciente.es_postrado %}Postrado{% else %}{{ paciente.edad }} años{% endif %}.
+            </p>
+          </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  </section>
+{% empty %}
+  {% if buscado or filtrado %}
+    <p class="lista__vacia">Ningún paciente coincide con {% if buscado %}esa búsqueda{% else %}esos filtros{% endif %}.</p>
+  {% else %}
+    <p class="lista__vacia">No hay pacientes con despacho a domicilio. Llegan con la carga del padrón.</p>
+  {% endif %}
+{% endfor %}
+{% endblock %}

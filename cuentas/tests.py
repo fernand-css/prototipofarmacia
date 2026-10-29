@@ -16,12 +16,12 @@ def crear_usuario(rut, rol):
 
 
 class RolesTests(TestCase):
-    def test_encargado_de_terreno_aterriza_en_panel_y_no_administra_cuentas(self):
+    def test_encargado_de_terreno_aterriza_en_domicilios_y_no_administra_cuentas(self):
         usuario = crear_usuario("12345678-5", Rol.ENCARGADO_TERRENO)
         self.client.force_login(usuario)
 
         respuesta = self.client.get(reverse("cuentas:inicio"))
-        self.assertRedirects(respuesta, reverse("cuentas:panel_funcionario"))
+        self.assertRedirects(respuesta, reverse("reparto:domicilios"))
 
         self.assertEqual(self.client.get(reverse("cuentas:usuarios")).status_code, 403)
 
@@ -59,6 +59,7 @@ class AterrizajeYNavegacionTests(TestCase):
                 ("usuarios", "cuentas:usuarios"),
                 ("ventanillas", "turnos:ventanillas"),
                 ("atencion", "turnos:atencion"),
+                ("domicilios", "reparto:domicilios"),
             )
         }
 
@@ -67,17 +68,17 @@ class AterrizajeYNavegacionTests(TestCase):
         respuesta = self.client.get(reverse("cuentas:inicio"))
         self.assertRedirects(respuesta, reverse("turnos:atencion"))
 
-    def test_la_qf_ve_los_tres_enlaces(self):
+    def test_la_qf_ve_sus_cuatro_enlaces(self):
         enlaces = self.enlaces(crear_usuario("11111111-1", Rol.QF))
-        self.assertEqual(enlaces, {"usuarios": True, "ventanillas": True, "atencion": True})
+        self.assertEqual(enlaces, {"usuarios": True, "ventanillas": True, "atencion": True, "domicilios": True})
 
     def test_el_funcionario_solo_ve_atencion(self):
         enlaces = self.enlaces(crear_usuario("12345678-5", Rol.FUNCIONARIO))
-        self.assertEqual(enlaces, {"usuarios": False, "ventanillas": False, "atencion": True})
+        self.assertEqual(enlaces, {"usuarios": False, "ventanillas": False, "atencion": True, "domicilios": False})
 
-    def test_el_encargado_de_terreno_no_ve_enlaces(self):
+    def test_el_encargado_de_terreno_solo_ve_domicilios(self):
         enlaces = self.enlaces(crear_usuario("12345678-5", Rol.ENCARGADO_TERRENO))
-        self.assertEqual(enlaces, {"usuarios": False, "ventanillas": False, "atencion": False})
+        self.assertEqual(enlaces, {"usuarios": False, "ventanillas": False, "atencion": False, "domicilios": True})
 
     def test_sin_sesion_no_hay_enlaces(self):
         contenido = self.client.get(reverse("cuentas:entrar")).content.decode()

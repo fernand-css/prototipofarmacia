@@ -1,0 +1,12 @@
+# Solo para desarrollo: servir con HTTPS en la red local y probar el GPS desde un teléfono
+# (spec 06). Con requirements.txt basta para levantar el sistema.
+#   pip install -r requirements-dev.txt
+#   python manage.py runserver_plus 0.0.0.0:8443 --cert-file certs/dev.crt
+-r requirements.txt
+cffi==2.1.1
+cryptography==50.0.2
+django-extensions==4.1
+MarkupSafe==3.0.4
+pycparser==3.12
+pyOpenSSL==26.4.0
+Werkzeug==3.1.9

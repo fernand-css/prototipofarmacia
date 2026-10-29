@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -6,6 +7,8 @@ from django.utils import timezone
 
 from cuentas.models import Rol, Usuario
 from cuentas.validators import calcular_dv
+from reparto.models import Domicilio, Sector
+from reparto.servicios import guardar_domicilio, verificar
 from turnos.models import (
     Categoria,
     EstadoPreparacion,
@@ -26,6 +29,23 @@ CANTIDAD_VENTANILLAS = 4
 DIAS_HISTORIAL = 3
 ATENCIONES_POR_DIA = 10
 PRIMER_CORRELATIVO_HISTORIAL = 901
+
+# Domicilios de demostración (spec 06): uno pendiente sin coordenadas y uno verificado. Direcciones
+# y coordenadas inventadas, cerca de San Nicolás. (cuerpo del RUT, datos, verificar)
+DOMICILIOS_DEMO = [
+    ("10000005", {
+        "sector": Sector.VERDE,
+        "direccion": "Camino a Dadinco km 4",
+        "referencias": "Casa roja frente a la escuela rural. Portón de madera.",
+    }, False),
+    ("10000006", {
+        "sector": Sector.AZUL,
+        "direccion": "Villa Los Aromos, pasaje 3 #45",
+        "referencias": "Reja verde. Preguntar por la señora Carmen, la vecina.",
+        "latitud": Decimal("-36.501230"),
+        "longitud": Decimal("-72.215640"),
+    }, True),
+]
 
 # (cuerpo del RUT, nombres, apellidos, edad, banderas, receta)
 # receta: None o (meses desde la emisión, vigencia en meses, entregas máximas, entregas realizadas)
@@ -95,7 +115,16 @@ class Command(BaseCommand):
                     sin_folio.folio = folio
                     sin_folio.save(update_fields=["folio"])
 
-        self.cargar_historial(hoy)
+        qf = Usuario.objects.filter(rol=Rol.QF).order_by("pk").first()
+        if qf is None:
+            self.stdout.write(self.style.WARNING(
+                "No hay una cuenta QF: no se cargaron el historial de atenciones ni los domicilios, y el "
+                "tótem no mostrará la espera estimada. Cree una con createsuperuser y vuelva a ejecutar "
+                "este comando."
+            ))
+        else:
+            self.cargar_historial(hoy, qf)
+            self.cargar_domicilios(qf)
 
         self.stdout.write(self.style.SUCCESS(
             f"Listo: {Ventanilla.objects.count()} ventanillas, "
@@ -105,17 +134,9 @@ class Command(BaseCommand):
         for paciente in Paciente.objects.filter(apellidos__startswith="Demo"):
             self.stdout.write(f"  {paciente.rut:<11} {paciente.nombre_completo}")
 
-    def cargar_historial(self, hoy):
-        """Atenciones ya cerradas en días anteriores, con su preparación. Se atribuyen a la primera
-        cuenta QF; sin una, no se cargan. Cada atención se crea una sola vez (por fecha y número)."""
-        qf = Usuario.objects.filter(rol=Rol.QF).order_by("pk").first()
-        if qf is None:
-            self.stdout.write(self.style.WARNING(
-                "No hay una cuenta QF: no se cargó el historial de atenciones y el tótem no mostrará "
-                "la espera estimada. Cree una con createsuperuser y vuelva a ejecutar este comando."
-            ))
-            return
-
+    def cargar_historial(self, hoy, qf):
+        """Atenciones ya cerradas en días anteriores, con su preparación, a nombre de la primera
+        cuenta QF. Cada atención se crea una sola vez (por fecha y número)."""
         pacientes = list(Paciente.objects.filter(apellidos__startswith="Demo").order_by("rut"))
         zona = timezone.get_current_timezone()
         for dias_atras in range(1, DIAS_HISTORIAL + 1):
@@ -156,4 +177,18 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Historial de espera: {DIAS_HISTORIAL * ATENCIONES_POR_DIA} atenciones de los "
             f"{DIAS_HISTORIAL} días anteriores, atribuidas a {qf.nombre_completo}."
+        )
+
+    def cargar_domicilios(self, qf):
+        """Un domicilio pendiente y uno verificado, a nombre de la primera cuenta QF. Se crean una
+        sola vez: si ya existen, no se pisan los cambios hechos desde la ficha."""
+        for cuerpo, datos, hay_que_verificar in DOMICILIOS_DEMO:
+            paciente = Paciente.objects.get(rut=f"{cuerpo}-{calcular_dv(cuerpo)}")
+            if Domicilio.objects.filter(paciente=paciente).exists():
+                continue
+            guardar_domicilio(paciente, datos, qf)
+            if hay_que_verificar:
+                verificar(paciente, qf)
+        self.stdout.write(
+            "Domicilios de demostración: Octavio, pendiente de verificar, y Pablo, verificado."
         )

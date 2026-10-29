@@ -37,6 +37,8 @@ def inicio(request):
         return redirect("cuentas:usuarios")
     if request.user.puede_atender:
         return redirect("turnos:atencion")
+    if request.user.es_encargado_terreno:
+        return redirect("reparto:domicilios")
     return redirect("cuentas:panel_funcionario")
 
 

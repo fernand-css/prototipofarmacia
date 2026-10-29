@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Sistema de turnos{% endblock %} · Farmacia CESFAM San Nicolás</title>
   <link rel="preload" href="{% static 'fonts/atkinson-hyperlegible-next-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  {% block estilos %}{% endblock %}
   <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
   {# Los scripts registran sus componentes Alpine, así que van antes de Alpine. #}
   <script defer src="{% static 'js/comun.js' %}"></script>
@@ -30,6 +31,9 @@
           <a href="{% url 'turnos:preparacion' %}"{% if request.resolver_match.url_name == 'preparacion' %} aria-current="page"{% endif %}>Preparación</a>
           <a href="{% url 'turnos:preparados' %}"{% if request.resolver_match.url_name == 'preparados' %} aria-current="page"{% endif %}>Preparados</a>
           <a href="{% url 'turnos:recetas' %}"{% if request.resolver_match.url_name == 'recetas' %} aria-current="page"{% endif %}>Recetas</a>
+        {% endif %}
+        {% if user.puede_consultar_domicilios %}
+          <a href="{% url 'reparto:domicilios' %}"{% if request.resolver_match.namespace == 'reparto' %} aria-current="page"{% endif %}>Domicilios</a>
         {% endif %}
       </nav>
     {% endif %}

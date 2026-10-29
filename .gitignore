@@ -17,6 +17,8 @@ db.sqlite3-journal
 *.log
 staticfiles/
 media/
+certs/*
+!certs/.gitkeep
 
 # Secretos y configuración local
 .env
