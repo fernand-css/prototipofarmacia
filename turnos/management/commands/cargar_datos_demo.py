@@ -1,11 +1,31 @@
+from datetime import datetime, time, timedelta
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from cuentas.models import Rol, Usuario
 from cuentas.validators import calcular_dv
-from turnos.models import Paciente, RecetaCronica, Ventanilla, sumar_meses
+from turnos.models import (
+    Categoria,
+    EstadoPreparacion,
+    EstadoTurno,
+    Paciente,
+    Preparacion,
+    RecetaCronica,
+    Turno,
+    Ventanilla,
+    sumar_meses,
+)
 
 CANTIDAD_VENTANILLAS = 4
+
+# Historial sintético de atenciones con preparación, para que el tótem muestre la espera estimada
+# (spec 05): ATENCIONES_POR_DIA en cada uno de los DIAS_HISTORIAL días anteriores a hoy. Usan los
+# números G-901 en adelante para no chocar con los turnos reales de esos días.
+DIAS_HISTORIAL = 3
+ATENCIONES_POR_DIA = 10
+PRIMER_CORRELATIVO_HISTORIAL = 901
 
 # (cuerpo del RUT, nombres, apellidos, edad, banderas, receta)
 # receta: None o (meses desde la emisión, vigencia en meses, entregas máximas, entregas realizadas)
@@ -75,6 +95,8 @@ class Command(BaseCommand):
                     sin_folio.folio = folio
                     sin_folio.save(update_fields=["folio"])
 
+        self.cargar_historial(hoy)
+
         self.stdout.write(self.style.SUCCESS(
             f"Listo: {Ventanilla.objects.count()} ventanillas, "
             f"{Paciente.objects.count()} pacientes y {RecetaCronica.objects.count()} recetas."
@@ -82,3 +104,56 @@ class Command(BaseCommand):
         self.stdout.write("RUT de prueba:")
         for paciente in Paciente.objects.filter(apellidos__startswith="Demo"):
             self.stdout.write(f"  {paciente.rut:<11} {paciente.nombre_completo}")
+
+    def cargar_historial(self, hoy):
+        """Atenciones ya cerradas en días anteriores, con su preparación. Se atribuyen a la primera
+        cuenta QF; sin una, no se cargan. Cada atención se crea una sola vez (por fecha y número)."""
+        qf = Usuario.objects.filter(rol=Rol.QF).order_by("pk").first()
+        if qf is None:
+            self.stdout.write(self.style.WARNING(
+                "No hay una cuenta QF: no se cargó el historial de atenciones y el tótem no mostrará "
+                "la espera estimada. Cree una con createsuperuser y vuelva a ejecutar este comando."
+            ))
+            return
+
+        pacientes = list(Paciente.objects.filter(apellidos__startswith="Demo").order_by("rut"))
+        zona = timezone.get_current_timezone()
+        for dias_atras in range(1, DIAS_HISTORIAL + 1):
+            fecha = hoy - timedelta(days=dias_atras)
+            for indice in range(ATENCIONES_POR_DIA):
+                # De 9:00 en adelante, cada 20 minutos; la atención dura de 4 a 8 minutos.
+                inicio = datetime.combine(fecha, time(9), tzinfo=zona) + timedelta(minutes=20 * indice)
+                duracion = timedelta(minutes=4 + indice % 5)
+                paciente = pacientes[indice % len(pacientes)]
+                turno, creado = Turno.objects.get_or_create(
+                    fecha=fecha,
+                    categoria=Categoria.GENERAL,
+                    correlativo=PRIMER_CORRELATIVO_HISTORIAL + indice,
+                    defaults={
+                        "rut": paciente.rut,
+                        "paciente": paciente,
+                        "estado": EstadoTurno.ATENDIDO,
+                        "atendido_por": qf,
+                        "emitido_en": inicio - timedelta(minutes=15),
+                        "llamado_en": inicio - timedelta(minutes=1),
+                        "ultimo_llamado_en": inicio - timedelta(minutes=1),
+                        "veces_llamado": 1,
+                        "inicio_atencion_en": inicio,
+                        "cierre_en": inicio + duracion,
+                    },
+                )
+                if creado:
+                    Preparacion.objects.create(
+                        turno=turno,
+                        estado=EstadoPreparacion.ENTREGADA,
+                        recibida_en=inicio,
+                        recibida_por=qf,
+                        lista_en=inicio + duracion - timedelta(minutes=1),
+                        preparada_por=qf,
+                        retirada_en=inicio + duracion,
+                        retirada_por=qf,
+                    )
+        self.stdout.write(
+            f"Historial de espera: {DIAS_HISTORIAL * ATENCIONES_POR_DIA} atenciones de los "
+            f"{DIAS_HISTORIAL} días anteriores, atribuidas a {qf.nombre_completo}."
+        )

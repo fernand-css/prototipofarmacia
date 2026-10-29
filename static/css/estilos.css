@@ -15,7 +15,7 @@
     5. Tarjetas             13. Fila de espera
     6. Formularios          14. Tótem y ticket
     7. Botones              15. Sala de espera
-    8. Insignias
+    8. Insignias            16. Preparación
    ===================================================================== */
 
 /* 1 · Fuente y variables
@@ -375,6 +375,10 @@ a { color: var(--primario-oscuro); }
 .insignia--vigente { background: var(--primario-claro); border-color: var(--primario); color: var(--primario-oscuro); }
 .insignia--vencida, .insignia--agotada { background: var(--gris-fondo); color: var(--texto-suave); }
 
+/* Estado de la preparación (EstadoPreparacion). En preparación va punteada: aún no termina. */
+.insignia--en_preparacion { border-style: dashed; border-color: var(--primario); color: var(--primario-oscuro); }
+.insignia--lista { background: var(--primario); border-color: var(--primario); color: #fff; }
+
 /* 9 · Avisos */
 .avisos { margin: 0 0 1.5rem; padding: 0; list-style: none; }
 
@@ -518,6 +522,12 @@ a { color: var(--primario-oscuro); }
 
 /* Bitácora del padrón: una sola acción, del ancho de la más larga ("Ver reporte"). */
 .lista--cargas .lista__fila { grid-template-columns: minmax(0, 1fr) 7.5rem; }
+
+/* Preparación: una sola acción, «Marcar lista». */
+.lista--preparacion .lista__fila { grid-template-columns: minmax(0, 1fr) 8rem; }
+
+/* Preparados pendientes de retiro: una sola acción, «Entregar». */
+.lista--preparados .lista__fila { grid-template-columns: minmax(0, 1fr) 6.5rem; }
 
 .lista__fila:last-child { border-bottom: none; }
 .lista__datos { min-width: 0; }
@@ -761,6 +771,20 @@ a { color: var(--primario-oscuro); }
 .turno--llamado .turno__acciones form:first-child { grid-column: 1 / -1; }
 .turno--llamado .turno__acciones form:first-child .boton { width: 100%; }
 .turno--llamado .turno__acciones form:last-child { justify-self: end; }
+
+/* En atención: el estado de la preparación sobre las acciones. «Finalizar» ocupa el espacio y
+   «No retiró», que no se deshace, queda apartada en el otro extremo. */
+.turno__preparacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin: 0 0 1rem;
+  color: var(--texto-suave);
+  font-weight: 600;
+}
+
+.turno--en_atencion .turno__acciones { justify-content: space-between; }
 
 @media (max-width: 480px) {
   .turno { --relleno-turno: 1.25rem; }
@@ -1066,6 +1090,9 @@ a { color: var(--primario-oscuro); }
 .ticket__intro { font-size: 1.2em; }
 .ticket__numero { font-size: 4.4em; font-weight: 800; letter-spacing: 0.01em; line-height: 1.05; }
 .ticket__categoria { font-size: 1.35em; font-weight: 700; }
+/* Espera estimada (HU-18): una foto del momento; al imprimir lleva la hora del cálculo. */
+.ticket .ticket__espera { margin-top: 0.35em; font-size: 1.1em; }
+.totem__solo-imprimir { display: none; }
 
 /* Talón: bajo la línea de corte, la fecha y la hora. */
 .ticket__talon {
@@ -1123,6 +1150,7 @@ a { color: var(--primario-oscuro); }
   /* Las impresoras no imprimen fondos: el ticket queda en negro sobre el papel. */
   .ticket { border: 2px solid #000; border-radius: 0; background: none; animation: none; break-inside: avoid; }
   .ticket__talon::before, .ticket__talon::after { display: none; }
+  .totem__solo-imprimir { display: inline; }
 }
 
 /* 15 · Sala de espera
@@ -1384,3 +1412,9 @@ a { color: var(--primario-oscuro); }
 @media (prefers-reduced-motion: reduce) {
   .sala__llamado--pulso { animation: none; }
 }
+
+/* 16 · Preparación
+   Recetas recibidas en las ventanillas y las ya listas. El número de turno se escribe como en
+   todo el sistema, pero sin papel ni forma de ticket: aquí no se entrega nada al paciente. */
+.preparacion__numero { font-weight: 800; font-variant-numeric: tabular-nums; }
+.preparacion__ventanilla { color: var(--texto-suave); font-size: 0.9375rem; font-weight: 600; }

@@ -6,9 +6,10 @@ Este sistema busca modernizar la entrega de números de atención, proporcionand
 
 ## ✨ Funcionalidades (MVP)
 
-* **Generación de Tickets:** Creación rápida de números de atención para los pacientes al ingresar al recinto.
+* **Generación de Tickets:** Creación rápida de números de atención para los pacientes al ingresar al recinto. El ticket indica la espera estimada, calculada con los tiempos reales de atención.
 * **Módulo de Pantalla (Sala de Espera):** Pantalla pública con el último turno llamado y su ventanilla, y los llamados anteriores del día. Se actualiza sola cada 2 segundos y avisa cada llamado nuevo con un resalte y, si se activa, con una campanilla y la voz. No muestra datos personales.
 * **Panel de Funcionario:** Interfaz para que el personal de salud pueda llamar al siguiente paciente en la fila, pausar atenciones o derivar. Si el paciente trae una receta crónica, muestra en qué entrega va («Entrega 3 de 6») y cuándo vence.
+* **Preparación y preparados pendientes de retiro:** Al recibir la receta en la ventanilla, la preparación aparece en una pantalla donde quien prepara la marca «Lista»; recién entonces se puede entregar. Si el paciente se fue antes de recibirla, lo preparado queda en «Preparados» y se le entrega cuando vuelva, sin pasar por la fila.
 * **Padrón y recetas de Rayén:** La Química Farmacéutica carga un archivo CSV o Excel con los pacientes crónicos y postrados y sus recetas vigentes, revisa una vista previa (qué se crea, qué se actualiza y qué filas se rechazan, con su motivo) y recién entonces la aplica. Así no se digita cada receta en dos sistemas.
 * **Historial Básico:** Registro de tiempos de emisión y atención para métricas futuras.
 
@@ -38,7 +39,7 @@ Sigue estos pasos para ejecutar el proyecto en tu entorno de desarrollo local.
    python manage.py createsuperuser
    ```
 
-3. (Opcional) Carga datos de demostración: 4 ventanillas y pacientes y recetas crónicas simuladas, que hacen las veces de Rayén. Imprime los RUT de prueba y se puede ejecutar más de una vez. No lo uses con datos reales:
+3. (Opcional) Carga datos de demostración: 4 ventanillas, pacientes y recetas crónicas simuladas, que hacen las veces de Rayén, y 30 atenciones de los 3 días anteriores para que el tótem pueda estimar la espera. Esas atenciones quedan a nombre de la primera cuenta de Química Farmacéutica, así que crea la cuenta antes (paso 2); sin ella el comando avisa y carga el resto. Imprime los RUT de prueba y se puede ejecutar más de una vez (otro día agrega las atenciones de los días que falten). No lo uses con datos reales:
 
    ```bash
    python manage.py cargar_datos_demo
@@ -65,6 +66,8 @@ Sigue estos pasos para ejecutar el proyecto en tu entorno de desarrollo local.
 | `/totem/` | Público, sin login | Tótem donde el paciente digita su RUT y recibe su turno (se puede imprimir) |
 | `/sala/` | Público, sin login | Pantalla de la sala de espera: último llamado, llamados anteriores y anuncio con voz |
 | `/atencion/` | Funcionario y QF | Panel de atención: abrir ventanilla, llamar, re-llamar, iniciar, finalizar, ausente, turno de urgencia y fila de espera |
+| `/preparacion/` | Funcionario y QF | Recetas recibidas en las ventanillas: se marcan «Lista» cuando están preparadas |
+| `/preparados/` | Funcionario y QF | Preparados que el paciente no retiró: buscar por RUT o apellido y entregar sin pasar por la fila |
 | `/recetas/` | Funcionario y QF | Recetas crónicas de un RUT: entregas realizadas y restantes, vencimiento y estado |
 | `/ventanillas/` | QF | Crear, habilitar y deshabilitar ventanillas |
 | `/padron/` | QF | Cargar el padrón y las recetas vigentes desde un archivo de Rayén, con vista previa y bitácora |
@@ -76,6 +79,31 @@ Sigue estos pasos para ejecutar el proyecto en tu entorno de desarrollo local.
 El paciente solo digita su RUT y el sistema deduce su categoría: **preferencial** (60 años o más, discapacidad o embarazo), **general** en otro caso, y **urgencia**, que emite un funcionario desde el panel. Los pacientes de despacho a domicilio (postrados o mayores de 80 años) reciben un aviso, y quienes tienen recetas crónicas vencidas o con las entregas agotadas son derivados al mesón para su renovación.
 
 Al llamar, la urgencia va primero y luego se intercalan **2 generales por cada preferencial** (se ajusta con `TURNOS_GENERALES_POR_PREFERENCIAL` en `farmacia_turnos/settings.py`); dentro de cada categoría manda el orden de llegada. Un paciente marcado como ausente (se habilita 60 segundos después del último llamado) debe sacar un turno nuevo.
+
+### Preparación de recetas y preparados pendientes de retiro
+
+La receta se prepara mientras el paciente espera en la ventanilla:
+
+1. **Recepción.** Al pulsar «Iniciar atención», la receta queda recibida y aparece en «Preparación», con el número de turno, la ventanilla y el paciente. Las urgencias van primero.
+2. **Lista.** Quien prepara (puede ser otra persona) pulsa «Marcar lista». El panel de la ventanilla lo ve en unos segundos, sin recargar.
+3. **Entrega.** «Finalizar atención» se habilita recién con la preparación lista: registra la entrega y, si hay receta crónica, suma una entrega.
+4. **No retiró.** Si el paciente se fue antes de recibir sus medicamentos, el funcionario pulsa «No retiró» y el turno queda ausente. Si la preparación ya estaba lista, pasa a «Preparados»; si no, se anula y el paciente que vuelva saca un turno nuevo.
+5. **Retiro posterior.** En «Preparados» se busca al paciente por RUT o apellido y se pulsa «Entregar». Se conserva la fecha original de la preparación. Si entretanto la receta crónica se agotó, la entrega se rechaza y hay que consultar con la Química Farmacéutica.
+
+Los preparados pendientes no vencen: quedan en la lista hasta que se entregan.
+
+### Espera estimada en el ticket
+
+El ticket del tótem dice, por ejemplo, «Espera estimada: unos 25 minutos». Se calcula al emitirlo:
+
+> (turnos que se llamarán antes + turnos en atención) × tiempo promedio de atención ÷ ventanillas abiertas
+
+* **Turnos por delante:** se cuentan en el orden real de la fila (urgencia primero y 2 generales por cada preferencial).
+* **Promedio:** el tiempo desde la recepción hasta la entrega de las atenciones de los últimos 30 días. Con menos de 20 atenciones registradas, o sin ventanillas abiertas, el ticket no muestra estimación.
+* **Redondeo:** hacia arriba, a múltiplos de 5 minutos. Si da menos, dice «menos de 5 minutos».
+* **Al imprimir:** lleva «calculada a las HH:MM», porque el papel no se actualiza. Volver a digitar el RUT en el tótem muestra el mismo turno con la estimación recalculada.
+
+Las constantes `TURNOS_DIAS_HISTORIAL_ESPERA`, `TURNOS_MUESTRAS_MINIMAS_ESPERA` y `TURNOS_MINUTOS_REDONDEO_ESPERA` están al final de `farmacia_turnos/settings.py`.
 
 ### Padrón y recetas de Rayén
 
@@ -147,5 +175,14 @@ Con los datos de demostración, en un solo equipo:
 3. En «Recetas», busca el RUT 10.000.008-3 (Agustín, paciente de demostración con la receta agotada): su receta dice «Agotada» y el tótem no le da turno.
 4. Descarga la plantilla y reemplaza la fila de ejemplo por una de ese paciente con un **folio nuevo** (la receta renovada), con `entregas_realizadas` en 0. Súbela y aplícala: ahora `/totem/` le entrega un turno.
 5. Llámalo desde «Atención»: el turno en curso muestra «Entrega 1 de» las entregas máximas que pusiste, y la fecha de vencimiento.
+
+### Demostración: preparación, «No retiró» y espera estimada
+
+1. Con la cuenta de la Química Farmacéutica creada, `python manage.py cargar_datos_demo` y `python manage.py runserver`.
+2. Inicia sesión, entra a «Atención» y elige una ventanilla.
+3. En <http://127.0.0.1:8000/totem/>, digita `10000007-5` (Carla, receta crónica vigente): el ticket muestra la espera estimada.
+4. En «Atención», «Llamar siguiente» e «Iniciar atención»: el turno dice «En preparación» y «Finalizar atención» está deshabilitado.
+5. En otra pestaña, «Preparación» muestra la receta: pulsa «Marcar lista». En unos segundos el panel dice «Lista».
+6. Pulsa «No retiró» y confirma. En «Preparados», busca «Demo» o `10000007-5` y pulsa «Entregar»: «Recetas» muestra una entrega más.
 
 Cada cambio de alcance está documentado en `specs/`.

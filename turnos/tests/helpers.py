@@ -6,8 +6,17 @@ from django.utils import timezone
 
 from cuentas.models import Rol, Usuario
 from cuentas.validators import calcular_dv
-from turnos.models import Categoria, Paciente, RecetaCronica, Turno, Ventanilla, sumar_meses
-from turnos.servicios import llamar_siguiente
+from turnos.models import (
+    Categoria,
+    EstadoPreparacion,
+    Paciente,
+    Preparacion,
+    RecetaCronica,
+    Turno,
+    Ventanilla,
+    sumar_meses,
+)
+from turnos.servicios import llamar_siguiente, marcar_lista
 
 
 def nacido_hace(anios, dias_extra=0):
@@ -16,9 +25,9 @@ def nacido_hace(anios, dias_extra=0):
 
 
 def crear_paciente(rut="12345678-5", edad=40, **extra):
-    return Paciente.objects.create(
-        rut=rut, nombres="Ana", apellidos="Prueba", fecha_nacimiento=nacido_hace(edad), **extra
-    )
+    datos = {"nombres": "Ana", "apellidos": "Prueba", "fecha_nacimiento": nacido_hace(edad)}
+    datos.update(extra)
+    return Paciente.objects.create(rut=rut, **datos)
 
 
 def rut_valido(cuerpo):
@@ -44,6 +53,14 @@ def crear_usuario(rut, rol):
         rol=rol,
         debe_cambiar_password=False,
     )
+
+
+def dejar_lista(usuario):
+    """Marca lista la preparación del turno en atención del funcionario, como desde /preparacion/."""
+    preparacion = Preparacion.objects.get(
+        turno__atendido_por=usuario, estado=EstadoPreparacion.EN_PREPARACION
+    )
+    return marcar_lista(preparacion.pk, usuario)
 
 
 class LlamadoTests(TestCase):

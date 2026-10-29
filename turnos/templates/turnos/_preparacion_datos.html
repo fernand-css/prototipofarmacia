@@ -1,0 +1,15 @@
+{% load rut %}
+{% with turno=preparacion.turno %}
+  <div class="lista__datos">
+    <p class="lista__nombre">
+      <span class="preparacion__numero">{{ turno.numero }}</span>
+      <span class="insignia insignia--{{ turno.categoria }}">{{ turno.get_categoria_display }}</span>
+      {% if turno.ventanilla %}<span class="preparacion__ventanilla">Ventanilla {{ turno.ventanilla.numero }}</span>{% endif %}
+    </p>
+    <p class="lista__detalle">
+      {% if turno.paciente %}{{ turno.paciente.nombre_completo }}{% else %}RUT {{ turno.rut|rut_legible }}{% endif %}.
+      {% if turno.receta %}Entrega {{ turno.receta.entrega_en_curso }} de {{ turno.receta.entregas_maximas }}.{% endif %}
+      {% if preparacion.minutos == 0 %}Recibida hace menos de 1 minuto.{% else %}Recibida hace {{ preparacion.minutos }} minuto{{ preparacion.minutos|pluralize }}.{% endif %}
+    </p>
+  </div>
+{% endwith %}

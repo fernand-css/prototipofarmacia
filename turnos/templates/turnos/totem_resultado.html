@@ -31,6 +31,9 @@
               </p>
               <p class="ticket__numero">{{ resultado.turno.numero }}</p>
               <p class="ticket__categoria">Atención {{ resultado.turno.get_categoria_display|lower }}</p>
+              {% if espera %}
+                <p class="ticket__espera">{{ espera }}<span class="totem__solo-imprimir">, calculada a las {{ espera_calculada|time:"H:i" }}</span>.</p>
+              {% endif %}
             </div>
             <p class="ticket__talon">{{ resultado.turno.emitido_en|date:"j \d\e F, H:i" }}</p>
           </div>

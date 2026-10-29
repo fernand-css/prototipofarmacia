@@ -24,6 +24,7 @@ from turnos.tests.helpers import (
     crear_paciente,
     crear_receta,
     crear_usuario,
+    dejar_lista,
     rut_valido,
 )
 
@@ -64,6 +65,7 @@ class FinalizarAtencionTests(TransicionesTests):
         self.turno()
         llamar_siguiente(self.ana)
         iniciar_atencion(self.ana)
+        dejar_lista(self.ana)
         turno = finalizar_atencion(self.ana)
         self.assertEqual(turno.estado, EstadoTurno.ATENDIDO)
         self.assertIsNotNone(turno.cierre_en)
@@ -82,6 +84,7 @@ class FinalizarAtencionTests(TransicionesTests):
     def test_suma_exactamente_una_entrega_a_la_receta(self):
         receta, _ = self.receta_con_turno_llamado(entregas_realizadas=2)
         iniciar_atencion(self.ana)
+        dejar_lista(self.ana)
         finalizar_atencion(self.ana)
         receta.refresh_from_db()
         self.assertEqual(receta.entregas_realizadas, 3)
@@ -89,6 +92,7 @@ class FinalizarAtencionTests(TransicionesTests):
     def test_finalizar_dos_veces_no_suma_dos_entregas(self):
         receta, _ = self.receta_con_turno_llamado(entregas_realizadas=2)
         iniciar_atencion(self.ana)
+        dejar_lista(self.ana)
         finalizar_atencion(self.ana)
         with self.assertRaises(ErrorDeAtencion):
             finalizar_atencion(self.ana)
@@ -101,6 +105,7 @@ class FinalizarAtencionTests(TransicionesTests):
         self.turno()  # turno sin receta asociada
         llamar_siguiente(self.ana)
         iniciar_atencion(self.ana)
+        dejar_lista(self.ana)
         finalizar_atencion(self.ana)
         receta.refresh_from_db()
         self.assertEqual(receta.entregas_realizadas, 1)
@@ -108,6 +113,7 @@ class FinalizarAtencionTests(TransicionesTests):
     def test_si_falla_el_cierre_no_se_suma_la_entrega(self):
         receta, llamado = self.receta_con_turno_llamado(entregas_realizadas=2)
         iniciar_atencion(self.ana)
+        dejar_lista(self.ana)
         with self.assertRaises(ErrorDeAtencion):
             finalizar_atencion(self.beto)
         receta.refresh_from_db()
@@ -120,6 +126,7 @@ class FinalizarAtencionTests(TransicionesTests):
         emitir_turno(paciente.rut)
         llamar_siguiente(self.ana)
         iniciar_atencion(self.ana)
+        dejar_lista(self.ana)
         finalizar_atencion(self.ana)
         self.assertEqual(emitir_turno(paciente.rut).tipo, TipoResultado.BLOQUEADO)
 
@@ -128,6 +135,7 @@ class FinalizarAtencionTests(TransicionesTests):
         self.turno(correlativo=2)
         llamar_siguiente(self.ana)
         iniciar_atencion(self.ana)
+        dejar_lista(self.ana)
         finalizar_atencion(self.ana)
         self.assertEqual(llamar_siguiente(self.ana).numero, "G-002")
 
@@ -250,6 +258,7 @@ class PanelTransicionesVistasTests(TransicionesTests):
         self.turno()
         self.client.post(reverse("turnos:llamar_siguiente"))
         self.assertContains(self.client.post(reverse("turnos:iniciar_atencion"), follow=True), "Inició la atención del turno G-001")
+        dejar_lista(self.ana)
         self.assertContains(self.client.post(reverse("turnos:finalizar_atencion"), follow=True), "Finalizó la atención del turno G-001")
         self.assertEqual(Turno.objects.get().estado, EstadoTurno.ATENDIDO)
 

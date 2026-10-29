@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block titulo %}Preparación{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/panel.js' %}"></script>{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Preparación</h1>
+    <p class="subtitulo">Recetas recibidas en las ventanillas. Marque cada una cuando esté lista para entregar.</p>
+  </div>
+</div>
+
+<div x-data="filaEnVivo({ url: '{% url 'turnos:preparacion_fila' %}', segundos: {{ segundos_refresco }}, ventanaActividad: {{ segundos_actividad }} })">
+  <div x-ref="contenido">
+    {% include "turnos/_preparacion_fila.html" %}
+  </div>
+</div>
+{% endblock %}

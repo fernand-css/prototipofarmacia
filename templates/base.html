@@ -27,6 +27,8 @@
         {% endif %}
         {% if user.puede_atender %}
           <a href="{% url 'turnos:atencion' %}"{% if request.resolver_match.url_name == 'atencion' %} aria-current="page"{% endif %}>Atención</a>
+          <a href="{% url 'turnos:preparacion' %}"{% if request.resolver_match.url_name == 'preparacion' %} aria-current="page"{% endif %}>Preparación</a>
+          <a href="{% url 'turnos:preparados' %}"{% if request.resolver_match.url_name == 'preparados' %} aria-current="page"{% endif %}>Preparados</a>
           <a href="{% url 'turnos:recetas' %}"{% if request.resolver_match.url_name == 'recetas' %} aria-current="page"{% endif %}>Recetas</a>
         {% endif %}
       </nav>

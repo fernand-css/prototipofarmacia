@@ -1,7 +1,15 @@
 from django.contrib import admin
 
 from turnos.forms import PacienteAdminForm
-from turnos.models import CargaPadron, Paciente, RecetaCronica, Turno, Ventanilla
+from turnos.models import (
+    LETRA_CATEGORIA,
+    CargaPadron,
+    Paciente,
+    Preparacion,
+    RecetaCronica,
+    Turno,
+    Ventanilla,
+)
 
 
 class RecetaCronicaInline(admin.TabularInline):
@@ -49,6 +57,37 @@ class CargaPadronAdmin(admin.ModelAdmin):
     list_filter = ("estado",)
     list_select_related = ("usuario",)
     date_hierarchy = "creada_en"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Preparacion)
+class PreparacionAdmin(admin.ModelAdmin):
+    """Preparaciones de cada turno: solo lectura, se registran desde el panel y /preparacion/."""
+
+    list_display = ("turno", "estado", "recibida_en", "lista_en", "retirada_en")
+    list_filter = ("estado",)
+    list_select_related = ("turno",)
+    search_fields = ("turno__rut",)
+    date_hierarchy = "recibida_en"
+
+    def get_search_results(self, request, queryset, search_term):
+        # El número de turno (G-045) no es un campo: se busca por su letra y correlativo.
+        queryset, duplicados = super().get_search_results(request, queryset, search_term)
+        letras = {letra: categoria for categoria, letra in LETRA_CATEGORIA.items()}
+        partes = search_term.strip().upper().split("-")
+        if len(partes) == 2 and partes[0] in letras and partes[1].isdigit():
+            queryset |= self.model.objects.filter(
+                turno__categoria=letras[partes[0]], turno__correlativo=int(partes[1])
+            )
+        return queryset, duplicados
 
     def has_add_permission(self, request):
         return False

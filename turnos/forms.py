@@ -29,6 +29,16 @@ class CargaPadronForm(forms.Form):
     )
 
 
+class BusquedaPreparadosForm(forms.Form):
+    """Búsqueda de preparados pendientes: un RUT en cualquier formato o parte del apellido."""
+
+    busqueda = forms.CharField(
+        label="RUT o apellido",
+        max_length=100,
+        error_messages={"required": "Escriba un RUT o un apellido."},
+    )
+
+
 class RutForm(forms.Form):
     """RUT digitado en el tótem o en el panel: se acepta en cualquier formato y se entrega normalizado."""
 

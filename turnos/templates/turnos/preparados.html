@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load rut %}
+
+{% block titulo %}Preparados{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Preparados pendientes de retiro</h1>
+    <p class="subtitulo">Medicamentos ya preparados que el paciente no retiró. Cuando vuelva, se le entregan sin pasar por la fila.</p>
+  </div>
+</div>
+
+<section class="tarjeta tarjeta--formulario" aria-label="Buscar por RUT o apellido">
+  <form method="post" action="{% url 'turnos:preparados' %}" class="formulario-en-linea">
+    {% csrf_token %}
+    {% for campo in formulario %}
+      {% include "includes/campo.html" %}
+    {% endfor %}
+    <button type="submit" class="boton">Buscar</button>
+  </form>
+</section>
+
+<section class="grupo" aria-labelledby="titulo-preparados">
+  <h2 class="grupo__titulo" id="titulo-preparados">
+    {% if buscado %}Resultado de la búsqueda{% else %}Todos los pendientes{% endif %}
+    <span class="grupo__cuenta">{{ pendientes|length }}</span>
+  </h2>
+  {% if buscado %}<p class="grupo__nota"><a href="{% url 'turnos:preparados' %}">Ver todos los pendientes</a></p>{% endif %}
+
+  {% if pendientes %}
+    <ul class="lista lista--preparados">
+      {% for preparacion in pendientes %}
+        {% with turno=preparacion.turno %}
+          <li class="lista__fila">
+            <div class="lista__datos">
+              <p class="lista__nombre">
+                {% if turno.paciente %}{{ turno.paciente.nombre_completo }}{% else %}Paciente fuera del padrón{% endif %}
+                <span class="grupo__cuenta">{{ turno.rut|rut_legible }}</span>
+              </p>
+              <p class="lista__detalle">
+                Turno {{ turno.numero }} del {{ turno.fecha|date:"d-m-Y" }}.
+                Preparado el {{ preparacion.lista_en|date:"d-m-Y" }} a las {{ preparacion.lista_en|time:"H:i" }}{% if preparacion.preparada_por %} por {{ preparacion.preparada_por.nombre_completo }}{% endif %}.
+                {% if turno.receta %}Receta {{ turno.receta.folio|default:"sin folio" }}, entrega {{ turno.receta.entrega_en_curso }} de {{ turno.receta.entregas_maximas }}.{% endif %}
+              </p>
+            </div>
+            <div class="lista__acciones">
+              <form method="post" action="{% url 'turnos:preparado_entregar' preparacion.pk %}" x-data="envio" @submit="enviar($event)"
+                    data-confirmar-objeto="{% if turno.paciente %}{{ turno.paciente.nombre_completo }}{% else %}{{ turno.rut|rut_legible }}{% endif %}"
+                    data-confirmar-titulo="¿Entregar este preparado?"
+                    data-confirmar-texto="Se registra la entrega del turno {{ turno.numero }} sin que el paciente pase por la fila.{% if turno.receta %} Se suma la entrega {{ turno.receta.entrega_en_curso }} de {{ turno.receta.entregas_maximas }} a su receta.{% endif %}"
+                    data-confirmar-accion="Entregar"
+                    data-confirmar-cancelar="Volver">
+                {% csrf_token %}
+                <button type="submit" class="boton boton--texto" :disabled="enviando">Entregar</button>
+              </form>
+            </div>
+          </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  {% elif buscado %}
+    <p class="lista__vacia">No hay preparados pendientes para esa búsqueda.</p>
+  {% else %}
+    <p class="lista__vacia">No hay preparados pendientes de retiro.</p>
+  {% endif %}
+</section>
+{% endblock %}

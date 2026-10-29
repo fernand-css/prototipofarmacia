@@ -30,44 +30,91 @@ document.addEventListener('alpine:init', () => {
   }));
 
   /*
-   * Fila de espera en vivo: cada `segundos` pide el fragmento HTML a `url` y reemplaza el
-   * contenido del elemento `contenido`. Si la sesión venció, la petición termina redirigida al
-   * login: en ese caso se recarga la página en vez de pegar el login dentro del panel.
-   *
-   * El sondeo avisa al servidor cuando hubo actividad real del usuario (clic, tecla, toque o
-   * movimiento) en los últimos `ventanaActividad` segundos: solo entonces la sesión se renueva.
-   * Así un panel olvidado deja vencer la sesión aunque siga consultando la fila.
+   * Registra la actividad real del usuario (clic, tecla, toque o movimiento) y devuelve una
+   * función que arma las cabeceras del sondeo: solo con actividad en los últimos
+   * `ventanaActividad` segundos avisa al servidor, y solo entonces la sesión se renueva. Así un
+   * panel olvidado deja vencer la sesión aunque siga consultando.
    */
-  Alpine.data('filaEnVivo', ({ url, segundos, ventanaActividad }) => {
+  function rastrearActividad(ventanaActividad) {
     let ultimaActividad = Date.now();
+    const registrar = () => {
+      ultimaActividad = Date.now();
+    };
+    EVENTOS_DE_ACTIVIDAD.forEach((evento) => document.addEventListener(evento, registrar, { passive: true }));
+    return () => (Date.now() - ultimaActividad <= ventanaActividad * 1000 ? { 'X-Actividad-Reciente': '1' } : {});
+  }
 
-    return {
-      init() {
-        const registrar = () => {
-          ultimaActividad = Date.now();
-        };
-        EVENTOS_DE_ACTIVIDAD.forEach((evento) => document.addEventListener(evento, registrar, { passive: true }));
-        setInterval(() => this.actualizar(), segundos * 1000);
-      },
+  /*
+   * Pide un fragmento HTML. Devuelve su texto, o null si no se pudo. Si la sesión venció, la
+   * petición termina redirigida al login: en ese caso se recarga la página en vez de pegar el
+   * login dentro del panel.
+   */
+  async function pedirFragmento(url, cabeceras) {
+    const respuesta = await fetch(url, { credentials: 'same-origin', headers: cabeceras });
+    if (respuesta.redirected) {
+      window.location.reload();
+      return null;
+    }
+    return respuesta.ok ? respuesta.text() : null;
+  }
 
-      hayActividadReciente() {
-        return Date.now() - ultimaActividad <= ventanaActividad * 1000;
-      },
-
-      async actualizar() {
-        const cabeceras = this.hayActividadReciente() ? { 'X-Actividad-Reciente': '1' } : {};
+  /*
+   * Fila de espera en vivo (y pantalla de preparación): cada `segundos` pide el fragmento HTML a
+   * `url` y reemplaza el contenido del elemento `contenido`.
+   */
+  Alpine.data('filaEnVivo', ({ url, segundos, ventanaActividad }) => ({
+    init() {
+      const cabeceras = rastrearActividad(ventanaActividad);
+      setInterval(async () => {
         try {
-          const respuesta = await fetch(url, { credentials: 'same-origin', headers: cabeceras });
-          if (respuesta.redirected) {
-            window.location.reload();
-            return;
-          }
-          if (respuesta.ok) {
-            this.$refs.contenido.innerHTML = await respuesta.text();
-          }
+          const html = await pedirFragmento(url, cabeceras());
+          if (html !== null) this.$refs.contenido.innerHTML = html;
         } catch (error) {
           // Sin red: se conserva lo que ya está en pantalla.
         }
+      }, segundos * 1000);
+    },
+  }));
+
+  /*
+   * Estado de la preparación del turno en atención. Reemplaza solo el fragmento del estado: los
+   * botones quedan fijos, así un modal abierto nunca pierde su formulario. Al leer
+   * data-estado="lista" habilita «Finalizar atención», cambia el texto de confirmación de
+   * «No retiró» por el de data-confirmar-texto-lista y deja de preguntar: ya no cambia sola.
+   * Cualquier otro estado (el turno se cerró en otra pestaña) recarga el panel.
+   */
+  Alpine.data('preparacionEnVivo', ({ url, segundos, ventanaActividad, lista }) => {
+    let reloj = null;
+
+    return {
+      lista,
+
+      init() {
+        if (this.lista) return;
+        const cabeceras = rastrearActividad(ventanaActividad);
+        reloj = setInterval(() => this.actualizar(cabeceras()), segundos * 1000);
+      },
+
+      async actualizar(cabeceras) {
+        let html;
+        try {
+          html = await pedirFragmento(url, cabeceras);
+        } catch (error) {
+          return; // Sin red: se conserva lo que ya está en pantalla.
+        }
+        if (html === null || this.lista) return;
+        this.$refs.contenido.innerHTML = html;
+        const estado = this.$refs.contenido.firstElementChild?.dataset.estado;
+        if (estado === 'en_preparacion') return;
+        clearInterval(reloj);
+        if (estado !== 'lista') {
+          window.location.reload();
+          return;
+        }
+        this.lista = true;
+        this.$root.querySelectorAll('[data-confirmar-texto-lista]').forEach((formulario) => {
+          formulario.dataset.confirmarTexto = formulario.dataset.confirmarTextoLista;
+        });
       },
     };
   });
