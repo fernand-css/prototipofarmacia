@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -29,6 +31,21 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
+def hosts_locales(valor):
+    """IP de la red local por las que se entra con HTTPS de desarrollo (spec 06), separadas por coma.
+
+    Devuelve (ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS). Sin IP, ([], []): Django sigue aceptando
+    localhost como siempre con DEBUG. Con IP, localhost se agrega explícitamente para no perderlo.
+    """
+    ips = [ip.strip() for ip in (valor or "").split(",") if ip.strip()]
+    if not ips:
+        return [], []
+    return ["localhost", "127.0.0.1", "[::1]", *ips], [f"https://{ip}:8443" for ip in ips]
+
+
+ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS = hosts_locales(os.environ.get("TURNOS_HOSTS_LOCALES"))
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -41,7 +58,13 @@ INSTALLED_APPS = [
 
     'cuentas',
     'turnos',
+    'reparto',
 ]
+
+# django-extensions trae `runserver_plus` (HTTPS de desarrollo). Está en requirements-dev.txt, no
+# en requirements.txt: se agrega solo si está instalado.
+if importlib.util.find_spec("django_extensions"):
+    INSTALLED_APPS.append("django_extensions")
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -165,6 +188,16 @@ TURNOS_PADRON_MINUTOS_PENDIENTE = 60         # una carga sin confirmar se descar
 TURNOS_DIAS_HISTORIAL_ESPERA = 30            # días de atenciones que entran al promedio
 TURNOS_MUESTRAS_MINIMAS_ESPERA = 20          # con menos atenciones no se muestra estimación
 TURNOS_MINUTOS_REDONDEO_ESPERA = 5           # la espera se redondea hacia arriba a este múltiplo
+
+# Domicilios de los pacientes con despacho a domicilio (spec 06).
+REPARTO_FOTOS_MAXIMAS = 3
+REPARTO_BYTES_MAXIMOS_FOTO = 10 * 1024 * 1024
+REPARTO_PIXELES_LADO_MAYOR = 1600
+REPARTO_PIXELES_MAXIMOS_ENTRADA = 40_000_000   # unos 40 megapíxeles
+REPARTO_CENTRO_MAPA = (-36.4999, -72.2128)     # San Nicolás: centro del mapa sin coordenadas
+REPARTO_ZOOM_MAPA = 17                         # acercamiento con un domicilio marcado
+# Fotos de domicilios. No hay MEDIA_URL pública: cada foto se entrega por una vista con permisos.
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Las pruebas crean muchas cuentas y el hash de producción (PBKDF2) tarda unos 0,4 s por cada una:
 # con uno rápido la suite baja de minutos a segundos. Solo se usa al correr `manage.py test`.

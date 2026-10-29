@@ -1,6 +1,6 @@
 # SPEC 06 — Domicilios de los pacientes con despacho a domicilio
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 01, SPEC 02 y SPEC 04
 > **Fecha:** 2026-10-28
 > **Objetivo:** Que el Encargado de Terreno registre, complete con coordenadas y fotos, y verifique en terreno el domicilio de cada paciente con despacho a domicilio, a partir de las direcciones que trae el padrón de Rayén y con el historial de cada cambio.
@@ -44,7 +44,9 @@ Es también la primera función propia del rol **Encargado de Terreno**, que des
 
 Hoy no hay manejo de archivos subidos (`MEDIA_ROOT`), ni Pillow, ni HTTPS en desarrollo (`ALLOWED_HOSTS = []`).
 
-Requiere aprobación: un cambio a la importación del SPEC 04. El archivo acepta tres columnas opcionales nuevas, y el motivo 5 («datos del paciente distintos») pasa a comparar también el domicilio. Un archivo sin esas columnas se procesa exactamente igual que hoy. El SPEC 04 no se edita.
+*Al final no se hizo:* la importación del padrón con domicilios (columnas `sector`, `direccion` y `referencias`) y el padrón sintético con direcciones salieron de este spec hacia uno posterior, por decisión del equipo (2026-10-28). La importación del SPEC 04 no cambió.
+
+Requería aprobación: un cambio a la importación del SPEC 04. El archivo acepta tres columnas opcionales nuevas, y el motivo 5 («datos del paciente distintos») pasa a comparar también el domicilio. Un archivo sin esas columnas se procesa exactamente igual que hoy. El SPEC 04 no se edita.
 
 El sistema es un **prototipo académico** con datos sintéticos. Las direcciones, coordenadas y fotos de las pruebas son inventadas.
 
@@ -75,18 +77,14 @@ El sistema es un **prototipo académico** con datos sintéticos. Las direcciones
   - borrarlas elimina el archivo y queda en el historial.
 - Historial completo: cada cambio guarda quién, cuándo, qué acción y el estado del domicilio después del cambio.
 - El Encargado de Terreno entra directo a `/domicilios/`, y «Domicilios» aparece en la barra del Encargado y de la QF.
-- Importación del padrón (cambio al SPEC 04):
-  - columnas opcionales `sector`, `direccion` y `referencias`;
-  - el sector inválido rechaza la fila;
-  - los domicilios pendientes se crean o actualizan, y los verificados no se pisan (queda una advertencia);
-  - conteos de domicilios en la vista previa y en la bitácora;
-  - las columnas nuevas van en la plantilla.
 - HTTPS de desarrollo para probar el GPS desde un teléfono en la red local: `runserver_plus` con certificado autofirmado, dependencias en un `requirements-dev.txt` aparte, y la IP local configurable por variable de entorno.
-- Datos sintéticos con domicilios en `generar_padron_sintetico` y en `cargar_datos_demo`.
+- Domicilios de demostración en `cargar_datos_demo`.
 - Pruebas de Django, pruebas de Node para la lectura de coordenadas, y la actualización de `README.md` y `CLAUDE.md`.
 
 **Fuera de alcance (para specs futuros):**
 
+- La importación del padrón con domicilios (columnas opcionales `sector`, `direccion` y `referencias`, con los domicilios verificados protegidos) y el padrón sintético con direcciones. Estaban en este spec (paso 7) y salieron por decisión del equipo durante la implementación. Hoy los domicilios se registran solo desde la ficha.
+- Buscar domicilios por nombre. La búsqueda de `/domicilios/` es por RUT o apellido; el equipo pidió buscar también por nombre al probarla, y quedó para un spec posterior.
 - Asignar, consultar, registrar y reprogramar entregas (HU-13 a HU-16).
 - El mapa general con todos los domicilios o las entregas del día, y el orden de visita sugerido (HU-14). En este spec, el mapa está solo en la ficha de cada domicilio.
 - Capa satelital, otros proveedores de mapas y claves de API.
@@ -179,7 +177,7 @@ class CambioDomicilio(models.Model):
 - **Editar un domicilio verificado lo deja verificado.** Las coordenadas de un domicilio verificado no se pueden borrar.
 - **Marcar pendiente** solo aplica a uno verificado, exige un motivo de hasta 300 caracteres, limpia `verificado_por` y `verificado_en` y agrega un cambio `MARCADO_PENDIENTE` con el motivo.
 - Todo cambio de estado se hace con `UPDATE` condicional sobre `estado`, el patrón del SPEC 02.
-- **Coordenadas:** latitud de -90 a 90 y longitud de -180 a 180, con 6 decimales (unos 11 cm). Se aceptan con coma o punto decimal, y si el campo de latitud trae «lat, lon» pegado, se separa. No se valida que caigan en la comuna.
+- **Coordenadas:** latitud de -90 a 90 y longitud de -180 a 180, con 6 decimales (unos 11 cm). Se aceptan con coma o punto decimal, y si el campo de latitud trae «lat, lon» pegado, se separa y manda sobre lo que diga la longitud (*ajustado al implementar:* quien pega las dos quiere reemplazar las dos; en el navegador se reparten en los dos campos al pegarlas). No se valida que caigan en la comuna.
 - **Indicador IG04:** domicilios verificados ÷ domicilios registrados de los pacientes con despacho a domicilio, como dice el informe. La lista muestra también cuántos pacientes están sin dirección, que no entran en ese porcentaje.
 
 **Reglas de las fotos:**
@@ -196,7 +194,7 @@ class CambioDomicilio(models.Model):
 - Las fotos solo se entregan por `/domicilios/fotos/<pk>/` (Encargado de Terreno y QF) con `Cache-Control: private`. `MEDIA_ROOT` no se sirve por ninguna URL pública. `media/` va en `.gitignore`.
 - Borrar una foto elimina el archivo y la fila, y agrega un cambio `FOTO_BORRADA`. Agregar una agrega `FOTO_AGREGADA`.
 
-**Cambios a la importación del padrón** (`turnos/importacion.py`):
+**Cambios a la importación del padrón** (`turnos/importacion.py`). *No se implementaron:* salieron de este spec hacia uno posterior junto con el paso 7; quedan como referencia.
 
 | Columna | Obligatoria | Formato |
 | --- | --- | --- |
@@ -235,6 +233,7 @@ MEDIA_ROOT = BASE_DIR / "media"                # fotos de domicilios; nunca se s
 
 - Leaflet (versión fija) va copiado en `static/vendor/leaflet/`, con su CSS, sus imágenes de marcador y su licencia (BSD-2).
 - Las teselas se piden a `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, siempre con la atribución «© colaboradores de OpenStreetMap» visible. No requieren clave.
+- Las teselas se piden con `referrerPolicy: 'strict-origin-when-cross-origin'`. *Ajustado tras la implementación:* OpenStreetMap bloquea las teselas que llegan sin `Referer` (las reemplaza por la imagen «Access blocked»), y Django lo quita en todo el sitio con `Referrer-Policy: same-origin`. Así se envía solo el origen (`http://127.0.0.1:8000/`), nunca la ruta `/domicilios/<id>/`, que lleva el id del paciente. El resto del sitio sigue con `same-origin`.
 - Sin coordenadas, el mapa se centra en `REPARTO_CENTRO_MAPA` con un acercamiento de comuna.
 - **Sin conexión,** las teselas no cargan: el mapa queda gris con el aviso «No se pudo cargar el mapa. Puede escribir las coordenadas.», y el formulario sigue funcionando.
 - El mapa es una ayuda: las coordenadas que se guardan son siempre las de los campos de latitud y longitud, que el mapa llena y que también se pueden escribir.
@@ -244,7 +243,7 @@ MEDIA_ROOT = BASE_DIR / "media"                # fotos de domicilios; nunca se s
 - `requirements-dev.txt` incluye `-r requirements.txt` más `django-extensions`, `Werkzeug` y `pyOpenSSL`, con versiones fijas.
 - `django_extensions` se agrega a `INSTALLED_APPS` solo si está instalado, así `requirements.txt` sigue bastando para el resto.
 - La variable de entorno `TURNOS_HOSTS_LOCALES` (por ejemplo `192.168.1.20`) agrega esas IP a `ALLOWED_HOSTS` y `https://<ip>:8443` a `CSRF_TRUSTED_ORIGINS`.
-- `certs/` va en `.gitignore`.
+- El contenido de `certs/` va en `.gitignore` (`certs/*`), y la carpeta queda en el repositorio con un `.gitkeep`. *Ajustado al implementar:* `runserver_plus` no crea la carpeta, y sin ella el comando falla en un repositorio recién clonado.
 - Se ejecuta con `python manage.py runserver_plus 0.0.0.0:8443 --cert-file certs/dev.crt`, que genera el certificado autofirmado la primera vez.
 
 **Rutas nuevas** en `reparto/urls.py`, montadas en la raíz:
@@ -360,7 +359,7 @@ Mixins nuevos en `reparto/mixins.py`: `SoloTerreno` (Encargado de Terreno) y `Co
    - una prueba de Django confirma que sin la variable `ALLOWED_HOSTS` no cambia, y que con ella se agregan la IP y el origen;
    - a mano: `runserver_plus` con certificado, el teléfono en la misma red abre `https://<ip>:8443/`, acepta el certificado y el botón llena las coordenadas. Queda anotado en el Registro de verificación.
 
-7. **Importación con domicilios.**
+7. **Importación con domicilios.** *Fuera de este spec:* el 2026-10-28, durante la implementación, el equipo decidió no cambiar la importación del padrón, y después la pasó a un spec posterior. No se implementó; el plan queda aquí como referencia para ese spec.
    - En `turnos/importacion.py`:
      - las columnas opcionales;
      - la validación del sector (motivo 2);
@@ -382,7 +381,7 @@ Mixins nuevos en `reparto/mixins.py`: `SoloTerreno` (Encargado de Terreno) y `Co
    - la plantilla, subida sin cambios, crea su domicilio de ejemplo sin rechazos.
 
 8. **Datos sintéticos.**
-   - **`generar_padron_sintetico`:**
+   - **`generar_padron_sintetico`** (*fuera de este spec, junto con el paso 7:* sin las columnas en la importación, esas direcciones no tienen cómo entrar; no se implementó):
      - sector, una dirección rural inventada («Camino a Dadinco km 4», «Sector Puente Ñuble, parcela 12») y referencias para cada paciente con despacho a domicilio;
      - algunos sin dirección;
      - sectores inválidos entre las filas inválidas del motivo 2;
@@ -417,65 +416,56 @@ Mixins nuevos en `reparto/mixins.py`: `SoloTerreno` (Encargado de Terreno) y `Co
 
 ## Criterios de aceptación
 
+Los de la importación del padrón con domicilios y del padrón sintético con direcciones salieron junto con el paso 7 (ver Alcance).
+
 Regresión de los SPEC 01 a 05:
 
-- [ ] `python manage.py test` y `node --test "pruebas_js/*.test.js"` pasan completos.
-- [ ] Un archivo del padrón sin las columnas nuevas produce exactamente los mismos conteos, rechazos y advertencias que antes de este spec.
-- [ ] No cambian el tótem, la fila, el panel de atención, la sala ni la preparación.
-- [ ] `requirements.txt` sigue bastando para levantar el sistema sin HTTPS.
+- [x] `python manage.py test` y `node --test "pruebas_js/*.test.js"` pasan completos.
+- [x] Un archivo del padrón produce exactamente los mismos conteos, rechazos y advertencias que antes de este spec (la importación no cambió).
+- [x] No cambian el tótem, la fila, el panel de atención, la sala ni la preparación.
+- [x] `requirements.txt` sigue bastando para levantar el sistema sin HTTPS.
 
 Domicilio:
 
-- [ ] Solo los pacientes con despacho a domicilio aparecen en `/domicilios/` y pueden tener domicilio.
-- [ ] Un paciente no puede tener dos domicilios.
-- [ ] Registrar y editar guardan sector, dirección, referencias y coordenadas, con quién y cuándo, y dejan un cambio en el historial.
-- [ ] «Verificar» sin coordenadas se rechaza con un mensaje que lo dice; con coordenadas deja el domicilio «Verificado», con quién y cuándo.
-- [ ] Editar un domicilio verificado lo deja verificado; borrar sus coordenadas se rechaza.
-- [ ] «Marcar pendiente» exige un motivo, usa el modal de confirmación y el motivo aparece en el historial.
-- [ ] Las coordenadas se aceptan con punto o coma decimal y como «-36.50, -72.21» pegado en la latitud; una latitud fuera de -90 a 90 se rechaza.
-- [ ] El historial de la ficha muestra cada acción con fecha, persona y motivo, de la más reciente a la más antigua.
+- [x] Solo los pacientes con despacho a domicilio aparecen en `/domicilios/` y pueden tener domicilio.
+- [x] Un paciente no puede tener dos domicilios.
+- [x] Registrar y editar guardan sector, dirección, referencias y coordenadas, con quién y cuándo, y dejan un cambio en el historial.
+- [x] «Verificar» sin coordenadas se rechaza con un mensaje que lo dice; con coordenadas deja el domicilio «Verificado», con quién y cuándo.
+- [x] Editar un domicilio verificado lo deja verificado; borrar sus coordenadas se rechaza.
+- [x] «Marcar pendiente» exige un motivo, usa el modal de confirmación y el motivo aparece en el historial.
+- [x] Las coordenadas se aceptan con punto o coma decimal y como «-36.50, -72.21» pegado en la latitud; una latitud fuera de -90 a 90 se rechaza.
+- [x] El historial de la ficha muestra cada acción con fecha, persona y motivo, de la más reciente a la más antigua.
 
 Fotos:
 
-- [ ] Se aceptan hasta 3 fotos por domicilio; la cuarta se rechaza con el mensaje del spec.
-- [ ] Una foto subida queda en JPEG, con su lado mayor de a lo más 1600 px y sin datos EXIF (ni GPS ni modelo de cámara).
-- [ ] Un archivo que no es imagen, uno de más de 10 MB o uno de más de 40 megapíxeles se rechaza sin guardar nada.
-- [ ] Una foto solo se ve con sesión de Encargado de Terreno o QF; no existe una URL pública de `MEDIA_ROOT`.
-- [ ] Borrar una foto elimina su archivo del disco y deja un cambio en el historial.
+- [x] Se aceptan hasta 3 fotos por domicilio; la cuarta se rechaza con el mensaje del spec.
+- [x] Una foto subida queda en JPEG, con su lado mayor de a lo más 1600 px y sin datos EXIF (ni GPS ni modelo de cámara).
+- [x] Un archivo que no es imagen, uno de más de 10 MB o uno de más de 40 megapíxeles se rechaza sin guardar nada.
+- [x] Una foto solo se ve con sesión de Encargado de Terreno o QF; no existe una URL pública de `MEDIA_ROOT`.
+- [x] Borrar una foto elimina su archivo del disco y deja un cambio en el historial.
 
 Lista e indicador:
 
-- [ ] La lista filtra por sector y por estado («Sin dirección», «Pendiente de verificar», «Verificado»), y cada estado se muestra con una insignia con texto.
-- [ ] La búsqueda por RUT (con o sin puntos) o por apellido (con o sin tilde) se envía por POST y el RUT no queda en la URL.
-- [ ] El resumen muestra los verificados sobre los registrados con su porcentaje (IG04) y, aparte, los pacientes sin dirección.
-
-Importación:
-
-- [ ] Las columnas `sector`, `direccion` y `referencias` se reconocen sin importar mayúsculas, tildes ni espacios.
-- [ ] Un sector distinto de Verde, Azul o Rojo rechaza la fila con el motivo 2.
-- [ ] Dos filas del mismo RUT con direcciones distintas se rechazan las dos.
-- [ ] Una carga crea domicilios pendientes y actualiza los pendientes; un campo vacío no borra un valor existente.
-- [ ] Una carga nunca cambia un domicilio verificado; si trae algo distinto, deja la advertencia del spec.
-- [ ] La vista previa muestra domicilios creados, actualizados y sin cambios, y coinciden con lo aplicado si la base no cambió.
-- [ ] Si la confirmación falla a mitad de camino, no queda ningún domicilio de esa carga.
+- [x] La lista filtra por sector y por estado («Sin dirección», «Pendiente de verificar», «Verificado»), y cada estado se muestra con una insignia con texto.
+- [x] La búsqueda por RUT (con o sin puntos) o por apellido (con o sin tilde) se envía por POST y el RUT no queda en la URL.
+- [x] El resumen muestra los verificados sobre los registrados con su porcentaje (IG04) y, aparte, los pacientes sin dirección.
 
 Acceso y uso en terreno:
 
-- [ ] El Encargado de Terreno entra directo a `/domicilios/` y ve «Domicilios» en la barra; la QF también lo ve.
-- [ ] Todas las acciones de escritura responden 403 a la QF, al funcionario y a quien no sea Encargado de Terreno, y redirigen al login sin sesión.
-- [ ] La lista, la ficha y el formulario se usan a 360 px de ancho sin desplazamiento horizontal.
-- [ ] La ficha muestra el domicilio en un mapa de OpenStreetMap dentro del sistema, con la atribución visible; sin coordenadas, el mapa se centra en San Nicolás.
-- [ ] Al editar, tocar el mapa o arrastrar el marcador llena latitud y longitud, y escribirlas mueve el marcador.
-- [ ] Sin conexión a las teselas, el mapa muestra el aviso del spec y el formulario se guarda igual con las coordenadas escritas.
-- [ ] El mapa no usa ninguna clave de API ni archivos de un CDN: Leaflet se sirve desde `static/`.
-- [ ] Con HTTPS, «Usar mi ubicación actual» llena latitud y longitud; sin HTTPS, el botón no aparece y las coordenadas se pueden escribir.
-- [ ] Con `requirements-dev.txt` y `TURNOS_HOSTS_LOCALES`, un teléfono en la misma red abre el sistema por HTTPS.
+- [x] El Encargado de Terreno entra directo a `/domicilios/` y ve «Domicilios» en la barra; la QF también lo ve.
+- [x] Todas las acciones de escritura responden 403 a la QF, al funcionario y a quien no sea Encargado de Terreno, y redirigen al login sin sesión.
+- [x] La lista, la ficha y el formulario se usan a 360 px de ancho sin desplazamiento horizontal.
+- [x] La ficha muestra el domicilio en un mapa de OpenStreetMap dentro del sistema, con la atribución visible; sin coordenadas, el mapa se centra en San Nicolás.
+- [x] Al editar, tocar el mapa o arrastrar el marcador llena latitud y longitud, y escribirlas mueve el marcador.
+- [x] Sin conexión a las teselas, el mapa muestra el aviso del spec y el formulario se guarda igual con las coordenadas escritas.
+- [x] El mapa no usa ninguna clave de API ni archivos de un CDN: Leaflet se sirve desde `static/`.
+- [x] Con HTTPS, «Usar mi ubicación actual» llena latitud y longitud; sin HTTPS, el botón no aparece y las coordenadas se pueden escribir.
+- [ ] Con `requirements-dev.txt` y `TURNOS_HOSTS_LOCALES`, un teléfono en la misma red abre el sistema por HTTPS. *Sin verificar con un teléfono real:* se probó desde el mismo equipo, por la IP de la red local y con Edge, con una ubicación simulada.
 
 Datos:
 
-- [ ] `generar_padron_sintetico --semilla 1` produce dos veces el mismo archivo, con domicilios, y su carga solo rechaza las filas inválidas pedidas.
-- [ ] `cargar_datos_demo` dos veces deja las mismas filas, con un domicilio pendiente y uno verificado.
-- [ ] Toda la verificación usa datos sintéticos.
+- [x] `cargar_datos_demo` dos veces deja las mismas filas, con un domicilio pendiente y uno verificado.
+- [x] Toda la verificación usa datos sintéticos.
 
 ---
 
@@ -513,6 +503,8 @@ Datos:
 - **No:** capa satelital (Mapbox) ni Google Maps. Los dos piden una clave, y Google además una cuenta con facturación. El satélite ayudaría a reconocer casas en el campo: si se pide, va en otro spec con su clave en una variable de entorno.
 - **Sí:** las coordenadas guardadas son siempre las de los campos, y el mapa solo las llena. Si el mapa no carga, por falta de señal o de internet, el registro sigue funcionando.
 - **Sí:** los filtros de sector y estado van por GET, y la búsqueda de RUT o apellido por POST. Los filtros no contienen datos personales y se pueden marcar; el RUT no debe quedar en el historial del navegador (regla de `/recetas/`).
+- **Sí:** la importación del padrón con domicilios sale de este spec. El equipo decidió no cambiar la importación durante la implementación; los domicilios se registran desde la ficha, y la importación va en un spec posterior. Decidido al implementar.
+- **No (por ahora):** buscar domicilios por nombre. El spec definió RUT o apellido; se pidió al probarlo y queda para un spec posterior.
 - **Sí:** el Encargado de Terreno entra directo a `/domicilios/`. Es su primera función propia y reemplaza al marcador de posición.
 
 ---
@@ -525,6 +517,7 @@ Datos:
 | Coordenadas invertidas o con el signo equivocado | Rango validado, el mapa de la ficha muestra a la vista dónde quedó el marcador, y el formato pegado desde un mapa respeta el orden. |
 | El mapa no carga en terreno (sin señal) o en el CESFAM (sin internet) | Las coordenadas se escriben o se toman del GPS igual; el mapa muestra un aviso y no bloquea el formulario. El mapa sin conexión queda para el spec del RNF-03. |
 | OpenStreetMap limita el uso de sus servidores de teselas | Uso bajo de un prototipo y atribución visible. Para producción, se evalúa un proveedor de teselas con contrato o un servidor propio. |
+| OpenStreetMap bloquea las teselas sin avisar: responde 200 con la imagen «Access blocked», así que el aviso «No se pudo cargar el mapa» no aparece | Las teselas se piden con el origen como `Referer`, que es lo que exige su política. Si vuelve a pasar, el bloqueo se ve en el mapa mismo y las coordenadas se siguen escribiendo. Para producción, un proveedor de teselas con contrato. |
 | Al pedir las teselas, OpenStreetMap ve qué zona del mapa se mira | No se envía ningún dato del paciente: solo las coordenadas de las teselas. Se acepta para el prototipo. |
 | Una foto revela la ubicación exacta o datos del teléfono | Se quitan todos los metadatos al guardar y nunca se guarda el original. |
 | Las fotos quedan expuestas en una URL pública | `MEDIA_ROOT` no se sirve por ninguna URL; solo la vista con permisos entrega cada foto, con `Cache-Control: private`. |
@@ -540,6 +533,8 @@ Datos:
 
 ## Lo que **no** está en este spec
 
+- Importación del padrón con domicilios y padrón sintético con direcciones (salieron durante la implementación).
+- Búsqueda de domicilios por nombre.
 - Asignación, mapa general de entregas, orden de visita, registro y reprogramación de entregas (HU-13 a HU-16).
 - Capa satelital, mapas con clave de API y mapa sin conexión.
 - Operación sin conexión (RNF-03) e instalación como PWA (RNF-09).
@@ -550,3 +545,38 @@ Datos:
 - Panel de mermas (HU-20) y bloqueo de login del SPEC 01.
 
 Cada uno de esos, si se hace, va en su propio spec.
+
+---
+
+## Registro de verificación
+
+Completado el 2026-10-28, durante la implementación. El paso 7 (importación con domicilios) y la parte del padrón sintético del paso 8 salieron de este spec por decisión del equipo, y el spec pasó a «Implementado».
+
+Condiciones comunes:
+
+- **Equipo:** Windows 11, Python 3.13.15 y Django 6.1.2 (el `requirements.txt` fija la 5.2.17; la del equipo es la que estaba instalada), Pillow 13.0.0, SQLite y Node 24.19.0.
+- **Bases:** las pruebas automáticas usan la base de pruebas de Django. Las comprobaciones en el navegador usan una base aparte en el directorio temporal, con `cargar_datos_demo`, una cuenta de Encargado de Terreno, una de QF, pacientes sintéticos y una foto sintética. Las migraciones y `cargar_datos_demo` se probaron sobre copias de la base local de desarrollo (`db.sqlite3`), que no se tocó.
+- **Navegador:** Edge sin cabeza controlado por el protocolo de DevTools desde Node, con `document.visibilityState` simulado como `hidden` (ver `CLAUDE.md`).
+
+| Comprobación | Condiciones | Resultado |
+| --- | --- | --- |
+| Suite completa | `python manage.py test` y `node --test "pruebas_js/*.test.js"` | Cumple. 534 pruebas de Django y 28 de JavaScript, sin fallas |
+| Migración `reparto` `0001` sobre datos existentes | Copia de la base local con 11 pacientes y 37 turnos | Cumple. Aplica sin errores, sin domicilios |
+| Fotos sin metadatos | JPEG generado con orientación, fabricante y GPS en el EXIF (comprobados antes de subirlo) | Cumple. Queda derecho, en JPEG y sin EXIF |
+| Lista de domicilios | Encargado y QF a 1366 px; Encargado a 360 px | Cumple. Resumen IG04, filtros, insignias con texto. A 360 px, el documento mide 360 px (sin desplazamiento horizontal) |
+| Ficha y formulario | Encargado y QF a 1366 px; Encargado a 360 px | Cumple. La QF ve la ficha sin acciones. Sin desplazamiento horizontal a 360 px. Las coordenadas se muestran con punto decimal |
+| Mapa en el formulario | Tocar el mapa; pegar «-36.470000, -72.180000» en la latitud con la longitud ya llena; a 1366 y 360 px | Cumple. Tocar llena los campos; lo pegado se reparte en los dos y el marcador se mueve |
+| Mapa sin teselas | `Network.setBlockedURLs` con `*tile.openstreetmap.org*` | Cumple. Aparece «No se pudo cargar el mapa. Puede escribir las coordenadas.» y, con las coordenadas escritas con coma decimal, el formulario se guarda |
+| Mapa de la ficha | Domicilio con coordenadas en el pueblo | Cumple. Se ven las calles de San Nicolás, el marcador y la atribución «Leaflet \| © colaboradores de OpenStreetMap» |
+| Bloqueo de OpenStreetMap en uso real | Encontrado por el equipo en la ficha de Octavio: el mapa mostraba «Access blocked». Causa: sin `Referer` (Django envía `Referrer-Policy: same-origin`); comprobado con `curl`: sin `Referer` llega la imagen de bloqueo y con el origen, la tesela real. En las pruebas anteriores con Edge sin cabeza no había aparecido | Corregido con `referrerPolicy: 'strict-origin-when-cross-origin'` en la capa de teselas. En Edge, las 12 teselas de la ficha y las 9 del formulario salen con `Referer: http://127.0.0.1:8765/` (solo el origen) y el mapa muestra las calles. Falta confirmarlo en el navegador del equipo |
+| Leaflet sin CDN ni clave | Archivos en `static/vendor/leaflet/`; prueba de Django que busca CDN y claves en las páginas | Cumple. La huella SHA-512 del paquete coincide con la del registro de npm |
+| GPS con HTTPS | `runserver_plus` con certificado autofirmado en la IP local; Edge con ubicación simulada (`setGeolocationOverride`) | Cumple. Contexto seguro, el botón aparece y llena -36.488123 y -72.205099, con la precisión |
+| GPS sin HTTPS | `runserver` por HTTP en la misma IP local | Cumple. No es contexto seguro y el botón no aparece |
+| `certs/` fuera del repositorio | `git status --ignored` tras generar el certificado | Cumple. `dev.crt` y `dev.key` ignorados; solo `.gitkeep` se versiona |
+| `cargar_datos_demo` dos veces | Copia de la base local, con su cuenta QF | Cumple. Las dos veces quedan 2 domicilios (Octavio pendiente, Pablo verificado) y 3 cambios en el historial |
+
+**Pendiente:**
+
+- Probar el GPS con un **teléfono real** en la misma red: solo se probó con una ubicación simulada en Edge.
+- Que una persona del equipo siga la demostración del README desde cero (verificación del paso 9).
+

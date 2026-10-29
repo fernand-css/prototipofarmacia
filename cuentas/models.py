@@ -60,6 +60,15 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return self.rol == Rol.QF
 
     @property
+    def es_encargado_terreno(self):
+        return self.rol == Rol.ENCARGADO_TERRENO
+
+    @property
     def puede_atender(self):
         """Atienden en ventanilla el funcionario y la QF; el Encargado de Terreno no."""
         return self.rol in (Rol.FUNCIONARIO, Rol.QF)
+
+    @property
+    def puede_consultar_domicilios(self):
+        """Ven los domicilios el Encargado de Terreno (que los edita) y la QF (que solo consulta)."""
+        return self.rol in (Rol.ENCARGADO_TERRENO, Rol.QF)

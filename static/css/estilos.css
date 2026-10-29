@@ -16,6 +16,7 @@
     6. Formularios          14. Tótem y ticket
     7. Botones              15. Sala de espera
     8. Insignias            16. Preparación
+                            17. Domicilios
    ===================================================================== */
 
 /* 1 · Fuente y variables
@@ -218,7 +219,7 @@ a { color: var(--primario-oscuro); }
 .campo { margin-bottom: 1.1rem; }
 .campo label { display: block; margin-bottom: 0.35rem; font-size: 0.9375rem; font-weight: 700; }
 
-.campo input, .campo select {
+.campo input, .campo select, .campo textarea {
   width: 100%;
   min-height: 2.75rem;
   padding: 0.55rem 0.75rem;
@@ -229,11 +230,13 @@ a { color: var(--primario-oscuro); }
   color: var(--texto);
 }
 
-.campo input:focus, .campo select:focus {
+.campo input:focus, .campo select:focus, .campo textarea:focus {
   outline: 3px solid var(--primario);
   outline-offset: 1px;
   border-color: var(--primario);
 }
+
+.campo textarea { min-height: auto; resize: vertical; line-height: 1.45; }
 
 .ayuda { margin-top: 0.35rem; color: var(--texto-suave); font-size: 0.875rem; }
 .error { margin-top: 0.35rem; color: var(--rojo); font-size: 0.875rem; font-weight: 600; }
@@ -378,6 +381,11 @@ a { color: var(--primario-oscuro); }
 /* Estado de la preparación (EstadoPreparacion). En preparación va punteada: aún no termina. */
 .insignia--en_preparacion { border-style: dashed; border-color: var(--primario); color: var(--primario-oscuro); }
 .insignia--lista { background: var(--primario); border-color: var(--primario); color: #fff; }
+
+/* Estado del domicilio (reparto). Pendiente usa la misma insignia punteada de las cargas: aún no
+   está confirmado. Sin dirección es la ausencia de domicilio, en gris. */
+.insignia--verificado { background: var(--primario-claro); border-color: var(--primario); color: var(--primario-oscuro); }
+.insignia--sin_direccion { border-style: dashed; background: var(--gris-fondo); color: var(--texto-suave); }
 
 /* 9 · Avisos */
 .avisos { margin: 0 0 1.5rem; padding: 0; list-style: none; }
@@ -1418,3 +1426,99 @@ a { color: var(--primario-oscuro); }
    todo el sistema, pero sin papel ni forma de ticket: aquí no se entrega nada al paciente. */
 .preparacion__numero { font-weight: 800; font-variant-numeric: tabular-nums; }
 .preparacion__ventanilla { color: var(--texto-suave); font-size: 0.9375rem; font-weight: 600; }
+
+/* 17 · Domicilios
+   Pacientes con despacho a domicilio y el estado de su dirección (HU-12). Los filtros son enlaces
+   (van en la URL); el activo se marca con aria-current y con relleno, no solo con color. */
+.domicilios__resumen { margin-bottom: 1.75rem; }
+
+.filtros { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; margin: 0 0 1.75rem; }
+.filtros__grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.filtros__titulo { color: var(--texto-suave); font-size: 0.9375rem; font-weight: 700; }
+.filtros__opciones { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+
+.filtros__opcion {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border: 1.5px solid var(--gris-borde);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primario-oscuro);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.filtros__opcion:hover { border-color: var(--primario); }
+.filtros__opcion[aria-current="true"] { background: var(--primario); border-color: var(--primario); color: #fff; }
+
+/* Ficha del domicilio: datos en dos columnas (etiqueta y valor), fotos en grilla y el historial
+   como lista. En un teléfono todo pasa a una columna: se usa en terreno. */
+.ficha__volver { margin: 0 0 1rem; font-size: 0.9375rem; }
+.ficha__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; }
+.ficha__datos { margin-bottom: 2.25rem; }
+
+.ficha__lista { display: grid; gap: 0.6rem; margin: 0; }
+.ficha__lista > div { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem; }
+.ficha__lista dt { color: var(--texto-suave); font-weight: 700; }
+.ficha__lista dd { margin: 0; overflow-wrap: anywhere; }
+.ficha__coordenadas { font-variant-numeric: tabular-nums; }
+
+.ficha__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; margin-top: 1.5rem; }
+.ficha__acciones form { margin: 0; }
+.ficha__acciones .ayuda { flex-basis: 100%; margin: 0; }
+.ficha__pendiente { flex: 1 1 100%; max-width: 32rem; }
+
+.ficha__formulario { max-width: 40rem; }
+.ficha__nota { margin: 0 0 1.25rem; }
+.ficha__coordenadas-campos { margin: 0 0 1rem; padding: 0; border: none; }
+.ficha__coordenadas-campos legend { margin-bottom: 0.6rem; padding: 0; font-weight: 700; }
+.ficha__par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
+
+.fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.fotos__item { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.fotos__item img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  background: var(--gris-fondo);
+  object-fit: cover;
+}
+
+.fotos__pie { margin: 0; color: var(--texto-suave); font-size: 0.875rem; }
+.fotos__item form { margin: 0; }
+.fotos__subir { max-width: 32rem; }
+
+/* Mapa del domicilio (Leaflet y OpenStreetMap). Es una ayuda: si no carga, queda el aviso y las
+   coordenadas se escriben a mano. La atribución de OpenStreetMap siempre queda a la vista. */
+.mapa { margin-top: 1.25rem; }
+.mapa .ayuda { margin: 0 0 0.5rem; }
+
+.mapa__lienzo {
+  height: 20rem;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  background: var(--gris-fondo);
+}
+
+.mapa__lienzo .leaflet-control-attribution { font-size: 0.75rem; }
+.mapa__aviso { margin: 0.5rem 0 0; }
+.ubicacion { margin: 0 0 0.5rem; }
+.ubicacion .ayuda:empty { display: none; }
+
+@media (max-width: 600px) {
+  .ficha__lista > div { grid-template-columns: 1fr; gap: 0.1rem; }
+  .ficha__par { grid-template-columns: 1fr; }
+  .mapa__lienzo { height: 16rem; }
+}

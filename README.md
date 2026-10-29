@@ -11,6 +11,7 @@ Este sistema busca modernizar la entrega de números de atención, proporcionand
 * **Panel de Funcionario:** Interfaz para que el personal de salud pueda llamar al siguiente paciente en la fila, pausar atenciones o derivar. Si el paciente trae una receta crónica, muestra en qué entrega va («Entrega 3 de 6») y cuándo vence.
 * **Preparación y preparados pendientes de retiro:** Al recibir la receta en la ventanilla, la preparación aparece en una pantalla donde quien prepara la marca «Lista»; recién entonces se puede entregar. Si el paciente se fue antes de recibirla, lo preparado queda en «Preparados» y se le entrega cuando vuelva, sin pasar por la fila.
 * **Padrón y recetas de Rayén:** La Química Farmacéutica carga un archivo CSV o Excel con los pacientes crónicos y postrados y sus recetas vigentes, revisa una vista previa (qué se crea, qué se actualiza y qué filas se rechazan, con su motivo) y recién entonces la aplica. Así no se digita cada receta en dos sistemas.
+* **Domicilios de los pacientes con despacho a domicilio:** El Encargado de Terreno registra el sector, la dirección y las referencias de cada paciente postrado o mayor de 80 años, marca la casa en un mapa (tocándolo o con el GPS del teléfono), agrega hasta 3 fotos y la verifica en terreno. Cada cambio queda en un historial.
 * **Historial Básico:** Registro de tiempos de emisión y atención para métricas futuras.
 
 ## 🛠️ Tecnologías Utilizadas
@@ -39,7 +40,7 @@ Sigue estos pasos para ejecutar el proyecto en tu entorno de desarrollo local.
    python manage.py createsuperuser
    ```
 
-3. (Opcional) Carga datos de demostración: 4 ventanillas, pacientes y recetas crónicas simuladas, que hacen las veces de Rayén, y 30 atenciones de los 3 días anteriores para que el tótem pueda estimar la espera. Esas atenciones quedan a nombre de la primera cuenta de Química Farmacéutica, así que crea la cuenta antes (paso 2); sin ella el comando avisa y carga el resto. Imprime los RUT de prueba y se puede ejecutar más de una vez (otro día agrega las atenciones de los días que falten). No lo uses con datos reales:
+3. (Opcional) Carga datos de demostración: 4 ventanillas, pacientes y recetas crónicas simuladas, que hacen las veces de Rayén, 30 atenciones de los 3 días anteriores para que el tótem pueda estimar la espera, y dos domicilios (uno pendiente y uno verificado). Las atenciones y los domicilios quedan a nombre de la primera cuenta de Química Farmacéutica, así que crea la cuenta antes (paso 2); sin ella el comando avisa y carga el resto. Imprime los RUT de prueba y se puede ejecutar más de una vez (otro día agrega las atenciones de los días que falten). No lo uses con datos reales:
 
    ```bash
    python manage.py cargar_datos_demo
@@ -69,6 +70,7 @@ Sigue estos pasos para ejecutar el proyecto en tu entorno de desarrollo local.
 | `/preparacion/` | Funcionario y QF | Recetas recibidas en las ventanillas: se marcan «Lista» cuando están preparadas |
 | `/preparados/` | Funcionario y QF | Preparados que el paciente no retiró: buscar por RUT o apellido y entregar sin pasar por la fila |
 | `/recetas/` | Funcionario y QF | Recetas crónicas de un RUT: entregas realizadas y restantes, vencimiento y estado |
+| `/domicilios/` | Encargado de Terreno (edita) y QF (consulta) | Domicilios de los pacientes con despacho a domicilio: lista, ficha con mapa y fotos, verificación e historial |
 | `/ventanillas/` | QF | Crear, habilitar y deshabilitar ventanillas |
 | `/padron/` | QF | Cargar el padrón y las recetas vigentes desde un archivo de Rayén, con vista previa y bitácora |
 | `/usuarios/` | QF | Gestión de cuentas |
@@ -104,6 +106,31 @@ El ticket del tótem dice, por ejemplo, «Espera estimada: unos 25 minutos». Se
 * **Al imprimir:** lleva «calculada a las HH:MM», porque el papel no se actualiza. Volver a digitar el RUT en el tótem muestra el mismo turno con la estimación recalculada.
 
 Las constantes `TURNOS_DIAS_HISTORIAL_ESPERA`, `TURNOS_MUESTRAS_MINIMAS_ESPERA` y `TURNOS_MINUTOS_REDONDEO_ESPERA` están al final de `farmacia_turnos/settings.py`.
+
+### Domicilios de los pacientes con despacho a domicilio
+
+Los pacientes postrados y los mayores de 80 años reciben sus medicamentos en casa. En «Domicilios», el **Encargado de Terreno** (que entra directo a esa página) registra dónde vive cada uno; la Química Farmacéutica puede consultarlo, pero no editarlo.
+
+* **La lista** muestra cuántos domicilios están verificados (el indicador IG04) y cuántos pacientes siguen sin dirección. Se filtra por sector (Verde, Azul, Rojo) y por estado, y se busca por RUT o apellido.
+* **La ficha** de cada paciente tiene el sector, la dirección, las referencias («casa roja frente a la escuela»), las coordenadas en un mapa, las fotos y el historial de cambios.
+* **Para marcar la casa en el mapa**, al editar se toca el mapa o se arrastra el marcador, y las coordenadas se llenan solas. También se pueden escribir, o pegar las dos desde otro mapa en el campo de latitud («-36.50, -72.21»). Con HTTPS aparece además «Usar mi ubicación actual», que toma el GPS del teléfono.
+* **Verificar** significa haber estado en el lugar, y exige coordenadas. Editar después un domicilio verificado lo deja verificado; si ya no corresponde (por ejemplo, el paciente se cambió de casa), se usa «Marcar pendiente» con un motivo, que queda en el historial.
+* **Fotos:** hasta 3 por domicilio, JPEG o PNG de hasta 10 MB. El sistema las achica y les quita los datos que guarda el teléfono (la ubicación exacta y el modelo), y solo se ven con sesión de Encargado de Terreno o QF: no hay una dirección pública para abrirlas. Se guardan en la carpeta `media/`, que no se sube al repositorio.
+* **El mapa** usa OpenStreetMap, gratis y sin clave. Necesita internet: sin conexión, avisa «No se pudo cargar el mapa» y las coordenadas se escriben a mano.
+* **Por ahora, el padrón de Rayén no trae direcciones:** se registran desde la ficha. Agregarlas a la importación queda para una etapa posterior.
+* **La búsqueda** es por RUT (con o sin puntos) o por apellido; buscar por nombre queda para una etapa posterior.
+
+#### Probar el GPS desde un teléfono
+
+El navegador solo deja usar el GPS en una página con HTTPS (o en `localhost`). Para probarlo desde un teléfono conectado a la misma red que el computador:
+
+```bash
+pip install -r requirements-dev.txt
+set TURNOS_HOSTS_LOCALES=192.168.1.20       # la IP del computador en la red local (en PowerShell: $env:TURNOS_HOSTS_LOCALES="192.168.1.20")
+python manage.py runserver_plus 0.0.0.0:8443 --cert-file certs/dev.crt
+```
+
+En el teléfono, abre `https://192.168.1.20:8443/` (con tu IP). La primera vez el navegador advierte que el certificado no es de confianza, porque es autofirmado: acéptalo para seguir. **Es solo para pruebas**: el certificado se genera en `certs/` y no se sube al repositorio.
 
 ### Padrón y recetas de Rayén
 
@@ -184,5 +211,13 @@ Con los datos de demostración, en un solo equipo:
 4. En «Atención», «Llamar siguiente» e «Iniciar atención»: el turno dice «En preparación» y «Finalizar atención» está deshabilitado.
 5. En otra pestaña, «Preparación» muestra la receta: pulsa «Marcar lista». En unos segundos el panel dice «Lista».
 6. Pulsa «No retiró» y confirma. En «Preparados», busca «Demo» o `10000007-5` y pulsa «Entregar»: «Recetas» muestra una entrega más.
+
+### Demostración: domicilios
+
+1. Con la cuenta de la Química Farmacéutica creada, `python manage.py cargar_datos_demo` y `python manage.py runserver`.
+2. Con esa cuenta, en «Usuarios», crea una cuenta de **Encargado de Terreno**, y entra con ella (te pedirá cambiar la contraseña).
+3. «Domicilios» muestra 1 de 2 domicilios verificados. Abre a Octavio (pendiente, sin coordenadas): «Verificar» está deshabilitado.
+4. «Editar», toca el mapa sobre la casa y guarda. Ahora sí puedes pulsar «Verificar».
+5. Sube una foto y revisa el historial. Con la cuenta de la Química Farmacéutica, la misma ficha se ve sin botones.
 
 Cada cambio de alcance está documentado en `specs/`.

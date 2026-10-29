@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load rut %}
+
+{% block titulo %}Domicilios{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1>Domicilios</h1>
+    <p class="subtitulo">Pacientes con despacho a domicilio: postrados y mayores de 80 años.</p>
+  </div>
+</div>
+
+<section class="domicilios__resumen" aria-labelledby="titulo-resumen">
+  <h2 id="titulo-resumen" class="solo-lector">Resumen</h2>
+  <dl class="resumen">
+    <div class="resumen__grupo">
+      <dt>Verificados en terreno</dt>
+      <dd><strong>{{ resumen.verificados }}</strong> de {{ resumen.registrados }} domicilio{{ resumen.registrados|pluralize }} registrado{{ resumen.registrados|pluralize }} ({{ resumen.porcentaje }} %)</dd>
+    </div>
+    <div class="resumen__grupo">
+      <dt>Sin dirección</dt>
+      <dd><strong>{{ resumen.sin_direccion }}</strong> paciente{{ resumen.sin_direccion|pluralize }} por registrar</dd>
+    </div>
+  </dl>
+</section>
+
+<section class="tarjeta tarjeta--formulario" aria-label="Buscar por RUT o apellido">
+  <form method="post" action="{{ request.get_full_path }}" class="formulario-en-linea">
+    {% csrf_token %}
+    {% for campo in formulario %}
+      {% include "includes/campo.html" %}
+    {% endfor %}
+    <button type="submit" class="boton">Buscar</button>
+  </form>
+</section>
+
+<nav class="filtros" aria-label="Filtrar domicilios">
+  <div class="filtros__grupo">
+    <span class="filtros__titulo" id="filtro-sector">Sector</span>
+    <ul class="filtros__opciones" aria-labelledby="filtro-sector">
+      {% for opcion in opciones_sector %}
+        <li><a href="{{ opcion.url }}" class="filtros__opcion"{% if opcion.activo %} aria-current="true"{% endif %}>{{ opcion.etiqueta }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="filtros__grupo">
+    <span class="filtros__titulo" id="filtro-estado">Estado</span>
+    <ul class="filtros__opciones" aria-labelledby="filtro-estado">
+      {% for opcion in opciones_estado %}
+        <li><a href="{{ opcion.url }}" class="filtros__opcion"{% if opcion.activo %} aria-current="true"{% endif %}>{{ opcion.etiqueta }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</nav>
+
+<section class="grupo" aria-labelledby="titulo-domicilios">
+  <h2 class="grupo__titulo" id="titulo-domicilios">
+    {% if buscado %}Resultado de la búsqueda{% else %}Pacientes{% endif %}
+    <span class="grupo__cuenta">{{ pacientes|length }}</span>
+  </h2>
+  {% if buscado %}<p class="grupo__nota"><a href="{{ request.get_full_path }}">Ver todos</a></p>{% endif %}
+
+  {% if pacientes %}
+    <ul class="lista lista--domicilios">
+      {% for paciente in pacientes %}
+        {% with domicilio=paciente.domicilio %}
+          <li class="lista__fila">
+            <div class="lista__datos">
+              <p class="lista__nombre">
+                <a href="{% url 'reparto:ficha' paciente.pk %}">{{ paciente.nombre_completo }}</a>
+                {% if not domicilio %}
+                  <span class="insignia insignia--sin_direccion">Sin dirección</span>
+                {% else %}
+                  <span class="insignia insignia--{{ domicilio.estado }}">{{ domicilio.get_estado_display }}</span>
+                {% endif %}
+              </p>
+              <p class="lista__detalle">
+                {{ paciente.rut|rut_legible }}. {% if paciente.es_postrado %}Postrado{% else %}{{ paciente.edad }} años{% endif %}.
+                {% if domicilio %}
+                  {% if domicilio.sector %}Sector {{ domicilio.get_sector_display }}.{% endif %}
+                  {{ domicilio.direccion }}.
+                {% endif %}
+              </p>
+            </div>
+          </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+  {% elif buscado or filtrado %}
+    <p class="lista__vacia">Ningún paciente coincide con {% if buscado %}esa búsqueda{% else %}esos filtros{% endif %}.</p>
+  {% else %}
+    <p class="lista__vacia">No hay pacientes con despacho a domicilio. Llegan con la carga del padrón.</p>
+  {% endif %}
+</section>
+{% endblock %}
