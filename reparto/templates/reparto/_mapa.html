@@ -1,0 +1,17 @@
+{# El mapa a pantalla completa de las páginas de domicilios y sus controles. Va dentro del componente mapaDomicilio o mapaDomicilios. #}
+<div class="escenario__mapa" x-ref="mapa" role="region" aria-label="{{ etiqueta_mapa }}"{% if ayuda_mapa %} aria-describedby="{{ ayuda_mapa }}"{% endif %}></div>
+<div class="escenario__avisos">
+  <p class="aviso aviso--warning" x-show="sinMapa" x-cloak>No se pudo cargar el mapa. Puede escribir las coordenadas.</p>
+  <p class="aviso aviso--warning" x-show="mensaje" x-text="mensaje" x-cloak role="status"></p>
+</div>
+<div class="escenario__controles" x-cloak>
+  <button type="button" class="control-mapa" x-show="puedeUbicarme" @click="ubicarme()" :disabled="ubicando" :aria-busy="ubicando" aria-label="Mostrar mi ubicación" title="Mostrar mi ubicación">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+  </button>
+  <button type="button" class="control-mapa" @click="acercar()" aria-label="Acercar" title="Acercar">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+  <button type="button" class="control-mapa" @click="alejar()" aria-label="Alejar" title="Alejar">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+  </button>
+</div>

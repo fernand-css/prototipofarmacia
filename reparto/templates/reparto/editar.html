@@ -2,59 +2,68 @@
 {% load l10n rut static %}
 
 {% block titulo %}{% if domicilio %}Editar{% else %}Registrar{% endif %} domicilio{% endblock %}
-{% block estilos %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
+{% block clase_body %}pagina-mapa{% endblock %}
+{% block clase_contenido %} contenido--mapa{% endblock %}
+{% block estilos %}
+  <link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">
+  {# Solo entre las páginas de domicilios: el mapa queda y la hoja cambia. #}
+  <style>@view-transition { navigation: auto; }</style>
+{% endblock %}
 {% block scripts %}
   <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
   <script defer src="{% static 'js/reparto.js' %}"></script>
 {% endblock %}
+{% block pie %}{% endblock %}
 
 {% block contenido %}
-<p class="ficha__volver"><a href="{% url 'reparto:ficha' paciente.pk %}">← Volver a la ficha</a></p>
+<div class="escenario"
+     x-data="mapaDomicilio({ editable: true, campoLatitud: '{{ formulario.latitud.id_for_label }}', campoLongitud: '{{ formulario.longitud.id_for_label }}', centro: [{{ centro_mapa.0|unlocalize }}, {{ centro_mapa.1|unlocalize }}], zoom: {{ zoom_mapa }} })">
+  {% include "reparto/_mapa.html" with etiqueta_mapa="Mapa para marcar el domicilio" ayuda_mapa="ayuda-mapa" %}
 
-<div class="encabezado-seccion">
-  <div>
-    <h1>{% if domicilio %}Editar{% else %}Registrar{% endif %} domicilio</h1>
-    <p class="subtitulo">{{ paciente.nombre_completo }}, {{ paciente.rut|rut_legible }}.</p>
-  </div>
+  <aside class="hoja" x-ref="hoja" aria-labelledby="titulo-editar">
+    <p class="hoja__volver"><a href="{% url 'reparto:ficha' paciente.pk %}">← Volver a la ficha</a></p>
+
+    <header class="hoja__cabeza">
+      <div>
+        <h1 class="hoja__titulo" id="titulo-editar">{% if domicilio %}Editar{% else %}Registrar{% endif %} domicilio</h1>
+        <p class="hoja__subtitulo">{{ paciente.nombre_completo }}, {{ paciente.rut|rut_legible }}.</p>
+      </div>
+    </header>
+
+    <form method="post" action="{% url 'reparto:editar' paciente.pk %}" class="hoja__formulario" x-data="envio" @submit="enviar($event)">
+      {% csrf_token %}
+      {% for error in formulario.non_field_errors %}
+        <p class="aviso aviso--error">{{ error }}</p>
+      {% endfor %}
+      {% if domicilio.estado == "verificado" %}
+        <p class="ayuda ficha__nota">Este domicilio está verificado y seguirá verificado después de editarlo. Si ya no corresponde, márquelo pendiente desde la ficha.</p>
+      {% endif %}
+
+      {% include "includes/campo.html" with campo=formulario.sector %}
+      {% include "includes/campo.html" with campo=formulario.direccion %}
+      {% include "includes/campo.html" with campo=formulario.referencias %}
+
+      <fieldset class="ficha__coordenadas-campos">
+        <legend>Ubicación</legend>
+        <p class="ayuda" id="ayuda-mapa">Toque el mapa o arrastre el marcador para marcar la casa. Las coordenadas se llenan solas.</p>
+
+        <div class="ubicacion" x-data="ubicacionActual({ campoLatitud: '{{ formulario.latitud.id_for_label }}', campoLongitud: '{{ formulario.longitud.id_for_label }}' })"
+             x-show="disponible" x-cloak>
+          <button type="button" class="boton boton--secundario" @click="usar()" :disabled="buscando">Usar mi ubicación actual</button>
+          <p class="ayuda" x-text="mensaje" aria-live="polite"></p>
+        </div>
+
+        <div class="ficha__par">
+          {% include "includes/campo.html" with campo=formulario.latitud %}
+          {% include "includes/campo.html" with campo=formulario.longitud %}
+        </div>
+      </fieldset>
+
+      <div class="hoja__pie ficha__acciones">
+        <button type="submit" class="boton" :disabled="enviando">Guardar</button>
+        <a href="{% url 'reparto:ficha' paciente.pk %}" class="boton boton--secundario">Cancelar</a>
+      </div>
+    </form>
+  </aside>
 </div>
-
-<form method="post" action="{% url 'reparto:editar' paciente.pk %}" class="tarjeta ficha__formulario" x-data="envio" @submit="enviar($event)">
-  {% csrf_token %}
-  {% for error in formulario.non_field_errors %}
-    <p class="aviso aviso--error">{{ error }}</p>
-  {% endfor %}
-  {% if domicilio.estado == "verificado" %}
-    <p class="ayuda ficha__nota">Este domicilio está verificado y seguirá verificado después de editarlo. Si ya no corresponde, márquelo pendiente desde la ficha.</p>
-  {% endif %}
-
-  {% include "includes/campo.html" with campo=formulario.sector %}
-  {% include "includes/campo.html" with campo=formulario.direccion %}
-  {% include "includes/campo.html" with campo=formulario.referencias %}
-
-  <fieldset class="ficha__coordenadas-campos">
-    <legend>Ubicación</legend>
-    <div class="ficha__par">
-      {% include "includes/campo.html" with campo=formulario.latitud %}
-      {% include "includes/campo.html" with campo=formulario.longitud %}
-    </div>
-
-    <div class="ubicacion" x-data="ubicacionActual({ campoLatitud: '{{ formulario.latitud.id_for_label }}', campoLongitud: '{{ formulario.longitud.id_for_label }}' })"
-         x-show="disponible" x-cloak>
-      <button type="button" class="boton boton--secundario" @click="usar()" :disabled="buscando">Usar mi ubicación actual</button>
-      <p class="ayuda" x-text="mensaje" aria-live="polite"></p>
-    </div>
-
-    <div class="mapa"
-         x-data="mapaDomicilio({ editable: true, campoLatitud: '{{ formulario.latitud.id_for_label }}', campoLongitud: '{{ formulario.longitud.id_for_label }}', centro: [{{ centro_mapa.0|unlocalize }}, {{ centro_mapa.1|unlocalize }}], zoom: {{ zoom_mapa }} })">
-      <p class="ayuda" id="ayuda-mapa">Toque el mapa o arrastre el marcador para marcar la casa. Las coordenadas se llenan solas.</p>
-      <div class="mapa__lienzo" x-ref="mapa" role="region" aria-label="Mapa para marcar el domicilio" aria-describedby="ayuda-mapa"></div>
-      <p class="aviso aviso--warning mapa__aviso" x-show="sinMapa" x-cloak>No se pudo cargar el mapa. Puede escribir las coordenadas.</p>
-    </div>
-  </fieldset>
-
-  <div class="ficha__acciones">
-    <button type="submit" class="boton" :disabled="enviando">Guardar</button>
-    <a href="{% url 'reparto:ficha' paciente.pk %}" class="boton boton--secundario">Cancelar</a>
-  </div>
-</form>
 {% endblock %}
