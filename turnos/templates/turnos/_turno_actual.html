@@ -8,7 +8,11 @@
     <p class="turno__numero">{{ turno.numero }}</p>
     <p class="turno__detalle">
       <span class="insignia insignia--{{ turno.categoria }}">{{ turno.get_categoria_display }}</span>
-      {% if turno.es_cronico %}<span class="insignia insignia--cronico">Crónico</span>{% endif %}
+      {% if turno.es_cronico %}
+        <span class="insignia insignia--cronico">Crónico</span>
+        <span>Entrega {{ turno.receta.entrega_en_curso }} de {{ turno.receta.entregas_maximas }}</span>
+        <span>Vence el {{ turno.receta.fecha_vencimiento|date:"d-m-Y" }}</span>
+      {% endif %}
       <span>Llamado {% if turno.veces_llamado == 1 %}1 vez{% else %}{{ turno.veces_llamado }} veces{% endif %}</span>
     </p>
 

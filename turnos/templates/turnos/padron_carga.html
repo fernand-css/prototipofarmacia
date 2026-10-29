@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load rut %}
+
+{% block titulo %}Carga del padrón{% endblock %}
+
+{% block contenido %}
+<div class="encabezado-seccion">
+  <div>
+    <h1 class="padron__encabezado">
+      {{ carga.nombre_archivo }}
+      <span class="insignia insignia--{{ carga.estado }}">{{ carga.get_estado_display }}</span>
+    </h1>
+    <p class="subtitulo">
+      Subida el {{ carga.creada_en|date:"d-m-Y" }} a las {{ carga.creada_en|time:"H:i" }} por {{ carga.usuario.nombre_completo }}.
+      {% if carga.aplicada_en %}Aplicada a las {{ carga.aplicada_en|time:"H:i" }}.{% endif %}
+    </p>
+  </div>
+  <a class="boton boton--secundario" href="{% url 'turnos:padron' %}">Volver al padrón</a>
+</div>
+
+{% if pendiente %}
+  <div class="aviso padron__aviso">
+    <span>
+      Esta es la vista previa: todavía no se guardó ningún paciente ni receta.
+      Revise los números y aplique la carga antes de las {{ vence_en|time:"H:i" }}; después se descarta.
+    </span>
+  </div>
+{% endif %}
+
+<section class="padron__resumen" aria-labelledby="titulo-resumen">
+  <h2 id="titulo-resumen" class="grupo__titulo">{% if pendiente %}Lo que hará la carga{% else %}Resultado{% endif %}</h2>
+  <dl class="resumen">
+    <div class="resumen__grupo">
+      <dt>Pacientes</dt>
+      <dd><strong>{{ carga.pacientes_creados }}</strong> nuevos</dd>
+      <dd><strong>{{ carga.pacientes_actualizados }}</strong> actualizados</dd>
+      <dd><strong>{{ carga.pacientes_sin_cambios }}</strong> sin cambios</dd>
+    </div>
+    <div class="resumen__grupo">
+      <dt>Recetas</dt>
+      <dd><strong>{{ carga.recetas_creadas }}</strong> nuevas</dd>
+      <dd><strong>{{ carga.recetas_actualizadas }}</strong> actualizadas</dd>
+      <dd><strong>{{ carga.recetas_sin_cambios }}</strong> sin cambios</dd>
+    </div>
+    <div class="resumen__grupo">
+      <dt>Filas del archivo</dt>
+      <dd><strong>{{ carga.filas_totales }}</strong> leídas</dd>
+      <dd><strong>{{ carga.filas_rechazadas }}</strong> rechazadas</dd>
+    </div>
+  </dl>
+</section>
+
+{% if pendiente %}
+  <div class="padron__acciones">
+    <form method="post" action="{% url 'turnos:padron_confirmar' carga.pk %}"
+          x-data="envio" @submit="enviar($event)"
+          data-confirmar-objeto="{{ carga.nombre_archivo }}"
+          data-confirmar-titulo="¿Aplicar esta carga?"
+          data-confirmar-texto="Se crean {{ carga.pacientes_creados }} pacientes y {{ carga.recetas_creadas }} recetas, y se actualizan {{ carga.pacientes_actualizados }} pacientes y {{ carga.recetas_actualizadas }} recetas. Las filas rechazadas no se cargan."
+          data-confirmar-accion="Aplicar carga"
+          data-confirmar-cancelar="Volver">
+      {% csrf_token %}
+      <button type="submit" class="boton" :disabled="enviando">Aplicar carga</button>
+    </form>
+    <form method="post" action="{% url 'turnos:padron_cancelar' carga.pk %}"
+          x-data="envio" @submit="enviar($event)"
+          data-confirmar-objeto="{{ carga.nombre_archivo }}"
+          data-confirmar-titulo="¿Cancelar esta carga?"
+          data-confirmar-texto="No se guarda ningún paciente ni receta. Para cargarla después, suba el archivo de nuevo."
+          data-confirmar-accion="Cancelar carga"
+          data-confirmar-cancelar="Volver"
+          data-confirmar-peligro>
+      {% csrf_token %}
+      <button type="submit" class="boton boton--secundario" :disabled="enviando">Cancelar</button>
+    </form>
+  </div>
+
+  {% if muestra %}
+    <section class="grupo" aria-labelledby="titulo-muestra">
+      <h2 class="grupo__titulo" id="titulo-muestra">Primeras filas válidas</h2>
+      <p class="grupo__nota">Revise que los nombres se lean bien: si las tildes o la «ñ» salen dañadas, el archivo viene en otra codificación.</p>
+      <ul class="lista">
+        {% for fila in muestra %}
+          <li class="lista__fila">
+            <div class="lista__datos">
+              <p class="lista__nombre">{{ fila.nombres }} {{ fila.apellidos }}</p>
+              <p class="lista__detalle">
+                Fila {{ fila.fila }}. RUT {{ fila.rut|rut_legible }}.
+                {% if fila.receta %}Receta {{ fila.receta.folio }}, {{ fila.receta.entregas_realizadas }} de {{ fila.receta.entregas_maximas }} entregas.{% else %}Sin receta.{% endif %}
+              </p>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+{% endif %}
+
+{% if carga.advertencias %}
+  <section class="grupo" aria-labelledby="titulo-advertencias">
+    <h2 class="grupo__titulo" id="titulo-advertencias">
+      Advertencias <span class="grupo__cuenta">{{ carga.advertencias|length }}</span>
+    </h2>
+    <p class="grupo__nota">Estas filas se cargan igual. El contador de entregas nunca baja.</p>
+    <ul class="lista">
+      {% for advertencia in carga.advertencias %}
+        <li class="lista__fila">
+          <div class="lista__datos">
+            <p class="lista__nombre">Fila {{ advertencia.fila }}: receta {{ advertencia.folio }}</p>
+            <p class="lista__detalle">{{ advertencia.mensaje }}</p>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="grupo" aria-labelledby="titulo-rechazos">
+  <div class="padron__titulo-con-accion">
+    <h2 class="grupo__titulo" id="titulo-rechazos">
+      Filas rechazadas <span class="grupo__cuenta">{{ carga.rechazos|length }}</span>
+    </h2>
+    {% if carga.rechazos %}
+      <a class="boton boton--texto" href="{% url 'turnos:padron_rechazos' carga.pk %}">Descargar en CSV</a>
+    {% endif %}
+  </div>
+  {% if carga.rechazos %}
+    <p class="grupo__nota">Estas filas no se cargan. Corríjalas en el archivo de origen y vuelva a subirlo.</p>
+    <ul class="lista">
+      {% for rechazo in rechazos %}
+        <li class="lista__fila">
+          <div class="lista__datos">
+            <p class="lista__nombre">Fila {{ rechazo.fila }}{% if rechazo.rut %}: {{ rechazo.rut }}{% endif %}</p>
+            <p class="lista__detalle">{{ rechazo.motivo }}</p>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if rechazos_ocultos %}
+      <p class="grupo__nota padron__mas">Y {{ rechazos_ocultos }} filas más: descargue el CSV para verlas todas.</p>
+    {% endif %}
+  {% else %}
+    <p class="lista__vacia">Ninguna fila fue rechazada.</p>
+  {% endif %}
+</section>
+{% endblock %}

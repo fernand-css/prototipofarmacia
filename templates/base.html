@@ -23,9 +23,11 @@
         {% if user.es_qf %}
           <a href="{% url 'cuentas:usuarios' %}"{% if request.resolver_match.url_name == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
           <a href="{% url 'turnos:ventanillas' %}"{% if request.resolver_match.url_name == 'ventanillas' %} aria-current="page"{% endif %}>Ventanillas</a>
+          <a href="{% url 'turnos:padron' %}"{% if request.resolver_match.url_name == 'padron' or request.resolver_match.url_name == 'padron_carga' %} aria-current="page"{% endif %}>Padrón</a>
         {% endif %}
         {% if user.puede_atender %}
           <a href="{% url 'turnos:atencion' %}"{% if request.resolver_match.url_name == 'atencion' %} aria-current="page"{% endif %}>Atención</a>
+          <a href="{% url 'turnos:recetas' %}"{% if request.resolver_match.url_name == 'recetas' %} aria-current="page"{% endif %}>Recetas</a>
         {% endif %}
       </nav>
     {% endif %}

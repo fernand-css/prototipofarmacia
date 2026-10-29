@@ -31,7 +31,10 @@
       </div>
     </template>
     <template x-if="!actual">
-      <p class="sala__vacio">Esperando llamados</p>
+      <div class="sala__vacio">
+        <p class="sala__vacio-titulo">Esperando llamados</p>
+        <p class="sala__vacio-texto">Cuando llamen su número, aparecerá aquí con la ventanilla que lo atiende.</p>
+      </div>
     </template>
   </section>
 
@@ -42,7 +45,7 @@
         <li class="sala__fila">
           <span class="sala__nuevo" x-show="estaResaltado(llamado)">Nuevo llamado</span>
           <span class="sala__fila-numero" :class="{ 'sala__fila-numero--largo': esLargo(llamado) }" x-text="llamado.numero"></span>
-          <span class="sala__fila-ventanilla">Ventanilla <span x-text="llamado.ventanilla"></span></span>
+          <span class="sala__fila-ventanilla">Ventanilla <span class="sala__placa" x-text="llamado.ventanilla"></span></span>
         </li>
       </template>
     </ol>
