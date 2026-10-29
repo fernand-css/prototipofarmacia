@@ -9,7 +9,7 @@ from django.views import View
 
 from reparto.forms import BusquedaDomiciliosForm, DomicilioForm, FotoForm, MarcarPendienteForm
 from reparto.mixins import ConsultaDomicilios, SoloTerreno
-from reparto.models import Domicilio, FotoDomicilio, Sector
+from reparto.models import Domicilio, EstadoDomicilio, FotoDomicilio, Sector
 from reparto.servicios import (
     ESTADOS_DE_LISTA,
     ErrorDeDomicilio,
@@ -22,6 +22,25 @@ from reparto.servicios import (
     verificar,
 )
 from turnos.models import Paciente
+
+
+def _por_sector(pacientes):
+    """La lista agrupada como se reparte: por sector, y al final los que no tienen sector (entre
+    ellos, los sin dirección). Cada grupo cuenta sus verificados sobre sus domicilios registrados."""
+    grupos = []
+    for valor, nombre in [*Sector.choices, ("", "")]:
+        del_grupo = [p for p in pacientes if (p.domicilio.sector if hasattr(p, "domicilio") else "") == valor]
+        if not del_grupo:
+            continue
+        registrados = [p for p in del_grupo if hasattr(p, "domicilio")]
+        grupos.append({
+            "titulo": f"Sector {nombre}" if valor else "Sin sector",
+            "pacientes": del_grupo,
+            "registrados": len(registrados),
+            "verificados": sum(p.domicilio.estado == EstadoDomicilio.VERIFICADO for p in registrados),
+            "sin_direccion": len(del_grupo) - len(registrados),
+        })
+    return grupos
 
 
 class DomiciliosView(ConsultaDomicilios, View):
@@ -58,7 +77,7 @@ class DomiciliosView(ConsultaDomicilios, View):
             "formulario": formulario,
             "buscado": busqueda is not None,
             "filtrado": any(filtros.values()),
-            "pacientes": pacientes_de_despacho(busqueda=busqueda, **filtros),
+            "grupos": _por_sector(pacientes_de_despacho(busqueda=busqueda, **filtros)),
             "resumen": resumen_de_verificacion(),
             "opciones_sector": self.opciones(filtros, "sector", Sector.choices),
             "opciones_estado": self.opciones(filtros, "estado", ESTADOS_DE_LISTA),

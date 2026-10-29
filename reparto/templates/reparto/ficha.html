@@ -2,6 +2,7 @@
 {% load l10n rut static %}
 
 {% block titulo %}Domicilio de {{ paciente.nombre_completo }}{% endblock %}
+{% block clase_contenido %} contenido--ancho{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
 {% block scripts %}
   <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
@@ -23,80 +24,104 @@
     </h1>
     <p class="subtitulo">{{ paciente.rut|rut_legible }}. {% if paciente.es_postrado %}Postrado{% else %}{{ paciente.edad }} años{% endif %}.</p>
   </div>
-  {% if puede_editar %}
-    <a href="{% url 'reparto:editar' paciente.pk %}" class="boton{% if domicilio %} boton--secundario{% endif %}">
-      {% if domicilio %}Editar{% else %}Registrar domicilio{% endif %}
-    </a>
+  {% if puede_editar and domicilio %}
+    <a href="{% url 'reparto:editar' paciente.pk %}" class="boton boton--secundario">Editar</a>
   {% endif %}
 </div>
 
 {% if not domicilio %}
-  <p class="lista__vacia">Este paciente todavía no tiene un domicilio registrado.</p>
+  <section class="ficha__vacia">
+    <p>Este paciente todavía no tiene un domicilio registrado.</p>
+    {% if puede_editar %}
+      <a href="{% url 'reparto:editar' paciente.pk %}" class="boton">Registrar domicilio</a>
+    {% endif %}
+  </section>
 {% else %}
-  <section class="tarjeta ficha__datos" aria-labelledby="titulo-datos">
-    <h2 id="titulo-datos" class="grupo__titulo">Dónde vive</h2>
-    <dl class="ficha__lista">
-      <div><dt>Sector</dt><dd>{{ domicilio.get_sector_display|default:"Sin sector" }}</dd></div>
-      <div><dt>Dirección</dt><dd>{{ domicilio.direccion }}</dd></div>
-      <div><dt>Referencias</dt><dd>{{ domicilio.referencias|default:"Sin referencias"|linebreaksbr }}</dd></div>
-      <div>
-        <dt>Coordenadas</dt>
-        <dd class="ficha__coordenadas">{% if domicilio.tiene_coordenadas %}{{ domicilio.latitud|unlocalize }}, {{ domicilio.longitud|unlocalize }}{% else %}Sin coordenadas{% endif %}</dd>
+  <div class="ficha">
+    {# La placa dice adónde ir, como la placa de ventanilla en la sala; el mapa, dónde queda. #}
+    <section class="ficha__lugar" aria-labelledby="titulo-direccion">
+      <div class="placa-domicilio">
+        <p class="placa-domicilio__sector">{% if domicilio.sector %}Sector {{ domicilio.get_sector_display }}{% else %}Sin sector{% endif %}</p>
+        <h2 class="placa-domicilio__direccion" id="titulo-direccion">{{ domicilio.direccion }}</h2>
       </div>
-      <div>
-        <dt>Verificación</dt>
-        <dd>
+      <div class="mapa mapa--ficha"
+           x-data="mapaDomicilio({ punto: {% if domicilio.tiene_coordenadas %}[{{ domicilio.latitud|unlocalize }}, {{ domicilio.longitud|unlocalize }}]{% else %}null{% endif %}, centro: [{{ centro_mapa.0|unlocalize }}, {{ centro_mapa.1|unlocalize }}], zoom: {{ zoom_mapa }} })">
+        <div class="mapa__lienzo" x-ref="mapa" role="region" aria-label="Mapa del domicilio"></div>
+        <p class="aviso aviso--warning mapa__aviso" x-show="sinMapa" x-cloak>No se pudo cargar el mapa. Puede escribir las coordenadas.</p>
+      </div>
+      <p class="ficha__coordenadas">
+        {% if domicilio.tiene_coordenadas %}
+          Coordenadas {{ domicilio.latitud|unlocalize }}, {{ domicilio.longitud|unlocalize }}
+        {% else %}
+          Sin coordenadas: el mapa muestra la comuna de San Nicolás.
+        {% endif %}
+      </p>
+    </section>
+
+    <div class="ficha__lado">
+      <section class="ficha__como-llegar" aria-labelledby="titulo-como-llegar">
+        <h2 class="grupo__titulo" id="titulo-como-llegar">Cómo llegar</h2>
+        {% if domicilio.referencias %}
+          <p class="referencias">{{ domicilio.referencias|linebreaksbr }}</p>
+        {% else %}
+          <p class="lista__vacia">Sin referencias.{% if puede_editar %} Agregue cómo reconocer la casa con «Editar».{% endif %}</p>
+        {% endif %}
+      </section>
+
+      <section class="tarjeta ficha__verificacion" aria-labelledby="titulo-verificacion">
+        <h2 class="grupo__titulo" id="titulo-verificacion">Verificación</h2>
+        <p>
           {% if domicilio.estado == "verificado" %}
             Verificado en terreno por {{ domicilio.verificado_por.nombre_completo }} el {{ domicilio.verificado_en|date:"d-m-Y" }} a las {{ domicilio.verificado_en|time:"H:i" }}.
           {% else %}
             Pendiente de verificar en terreno.
           {% endif %}
-        </dd>
-      </div>
-      <div>
-        <dt>Última actualización</dt>
-        <dd>{{ domicilio.actualizado_por.nombre_completo }}, el {{ domicilio.actualizado_en|date:"d-m-Y" }} a las {{ domicilio.actualizado_en|time:"H:i" }}.</dd>
-      </div>
-    </dl>
+        </p>
 
-    <div class="mapa"
-         x-data="mapaDomicilio({ punto: {% if domicilio.tiene_coordenadas %}[{{ domicilio.latitud|unlocalize }}, {{ domicilio.longitud|unlocalize }}]{% else %}null{% endif %}, centro: [{{ centro_mapa.0|unlocalize }}, {{ centro_mapa.1|unlocalize }}], zoom: {{ zoom_mapa }} })">
-      <div class="mapa__lienzo" x-ref="mapa" role="region" aria-label="Mapa del domicilio"></div>
-      <p class="aviso aviso--warning mapa__aviso" x-show="sinMapa" x-cloak>No se pudo cargar el mapa. Puede escribir las coordenadas.</p>
-      {% if not domicilio.tiene_coordenadas %}<p class="ayuda">Sin coordenadas: el mapa muestra la comuna de San Nicolás.</p>{% endif %}
-    </div>
-
-    {% if puede_editar %}
-      <div class="ficha__acciones">
-        {% if domicilio.estado == "pendiente" %}
-          {% if domicilio.tiene_coordenadas %}
-            <form method="post" action="{% url 'reparto:verificar' paciente.pk %}" x-data="envio" @submit="enviar($event)">
-              {% csrf_token %}
-              <button type="submit" class="boton" :disabled="enviando">Verificar</button>
-            </form>
-          {% else %}
-            {# Sin Alpine: un :disabled reactivo lo volvería a habilitar. #}
-            <button type="button" class="boton" disabled aria-describedby="ayuda-verificar">Verificar</button>
-            <p class="ayuda" id="ayuda-verificar">Para verificar, registre primero las coordenadas con «Editar».</p>
-          {% endif %}
-        {% else %}
-          <form method="post" action="{% url 'reparto:marcar_pendiente' paciente.pk %}" class="ficha__pendiente"
-                x-data="envio" @submit="enviar($event)"
-                data-confirmar-objeto="{{ paciente.nombre_completo }}"
-                data-confirmar-titulo="¿Marcar el domicilio pendiente de verificar?"
-                data-confirmar-texto="Deja de contar como verificado hasta que alguien vuelva a verificarlo en terreno. El motivo queda en el historial."
-                data-confirmar-accion="Marcar pendiente"
-                data-confirmar-cancelar="Volver">
-            {% csrf_token %}
-            {% for campo in form_pendiente %}
-              {% include "includes/campo.html" %}
-            {% endfor %}
-            <button type="submit" class="boton boton--secundario" :disabled="enviando">Marcar pendiente</button>
-          </form>
+        {% if puede_editar %}
+          <div class="ficha__acciones">
+            {% if domicilio.estado == "pendiente" %}
+              {% if domicilio.tiene_coordenadas %}
+                <form method="post" action="{% url 'reparto:verificar' paciente.pk %}" x-data="envio" @submit="enviar($event)">
+                  {% csrf_token %}
+                  <button type="submit" class="boton" :disabled="enviando">Verificar</button>
+                </form>
+              {% else %}
+                {# Sin Alpine: un :disabled reactivo lo volvería a habilitar. #}
+                <button type="button" class="boton" disabled aria-describedby="ayuda-verificar">Verificar</button>
+                <p class="ayuda" id="ayuda-verificar">Para verificar, registre primero las coordenadas con «Editar».</p>
+              {% endif %}
+            {% else %}
+              {# Plegado: es una acción poco frecuente y el motivo solo se pide al abrirla. #}
+              <details class="ficha__desplegable">
+              <summary class="boton boton--secundario">Marcar pendiente…</summary>
+              <form method="post" action="{% url 'reparto:marcar_pendiente' paciente.pk %}" class="ficha__pendiente"
+                    x-data="envio" @submit="enviar($event)"
+                    data-confirmar-objeto="{{ paciente.nombre_completo }}"
+                    data-confirmar-titulo="¿Marcar el domicilio pendiente de verificar?"
+                    data-confirmar-texto="Deja de contar como verificado hasta que alguien vuelva a verificarlo en terreno. El motivo queda en el historial."
+                    data-confirmar-accion="Marcar pendiente"
+                    data-confirmar-cancelar="Volver">
+                {% csrf_token %}
+                {% for campo in form_pendiente %}
+                  {% include "includes/campo.html" %}
+                {% endfor %}
+                <div class="ficha__acciones">
+                  <button type="submit" class="boton boton--secundario" :disabled="enviando">Marcar pendiente</button>
+                  <button type="button" class="boton boton--texto" @click="$el.closest('details').open = false">Cancelar</button>
+                </div>
+              </form>
+              </details>
+            {% endif %}
+          </div>
         {% endif %}
-      </div>
-    {% endif %}
-  </section>
+
+        <p class="ficha__actualizado">
+          Última actualización: {{ domicilio.actualizado_por.nombre_completo }}, el {{ domicilio.actualizado_en|date:"d-m-Y" }} a las {{ domicilio.actualizado_en|time:"H:i" }}.
+        </p>
+      </section>
+    </div>
+  </div>
 
   <section class="grupo" aria-labelledby="titulo-fotos">
     <h2 class="grupo__titulo" id="titulo-fotos">Fotos <span class="grupo__cuenta">{{ fotos|length }} de {{ fotos_maximas }}</span></h2>
@@ -106,21 +131,21 @@
           <li class="fotos__item">
             <img src="{% url 'reparto:foto' foto.pk %}" width="{{ foto.ancho }}" height="{{ foto.alto }}" loading="lazy"
                  alt="Foto {{ forloop.counter }} del domicilio de {{ paciente.nombre_completo }}">
-            <p class="fotos__pie">
-              {{ foto.subida_por.nombre_completo }}, {{ foto.subida_en|date:"d-m-Y" }}.
-            </p>
-            {% if puede_editar %}
-              <form method="post" action="{% url 'reparto:borrar_foto' foto.pk %}" x-data="envio" @submit="enviar($event)"
-                    data-confirmar-objeto="Foto {{ forloop.counter }}"
-                    data-confirmar-titulo="¿Borrar esta foto?"
-                    data-confirmar-texto="La foto se elimina y no se puede recuperar. Queda registrado en el historial quién la borró."
-                    data-confirmar-accion="Borrar foto"
-                    data-confirmar-cancelar="Volver"
-                    data-confirmar-peligro>
-                {% csrf_token %}
-                <button type="submit" class="boton boton--texto boton--texto-peligro" :disabled="enviando">Borrar</button>
-              </form>
-            {% endif %}
+            <div class="fotos__pie">
+              <p>{{ foto.subida_por.nombre_completo }}, {{ foto.subida_en|date:"d-m-Y" }}.</p>
+              {% if puede_editar %}
+                <form method="post" action="{% url 'reparto:borrar_foto' foto.pk %}" x-data="envio" @submit="enviar($event)"
+                      data-confirmar-objeto="Foto {{ forloop.counter }}"
+                      data-confirmar-titulo="¿Borrar esta foto?"
+                      data-confirmar-texto="La foto se elimina y no se puede recuperar. Queda registrado en el historial quién la borró."
+                      data-confirmar-accion="Borrar foto"
+                      data-confirmar-cancelar="Volver"
+                      data-confirmar-peligro>
+                  {% csrf_token %}
+                  <button type="submit" class="boton boton--texto boton--texto-peligro" :disabled="enviando">Borrar</button>
+                </form>
+              {% endif %}
+            </div>
           </li>
         {% endfor %}
       </ul>
@@ -143,19 +168,17 @@
 
   <section class="grupo" aria-labelledby="titulo-historial">
     <h2 class="grupo__titulo" id="titulo-historial">Historial</h2>
-    <ul class="lista">
+    <ol class="historial">
       {% for cambio in cambios %}
-        <li class="lista__fila">
-          <div class="lista__datos">
-            <p class="lista__nombre">{{ cambio.get_accion_display }}</p>
-            <p class="lista__detalle">
-              {{ cambio.usuario.nombre_completo }}, el {{ cambio.en|date:"d-m-Y" }} a las {{ cambio.en|time:"H:i" }}.
-              {% if cambio.motivo %}Motivo: {{ cambio.motivo }}{% endif %}
-            </p>
-          </div>
+        <li class="historial__paso">
+          <p class="historial__accion">{{ cambio.get_accion_display }}</p>
+          <p class="historial__detalle">
+            {{ cambio.usuario.nombre_completo }}, el {{ cambio.en|date:"d-m-Y" }} a las {{ cambio.en|time:"H:i" }}.
+            {% if cambio.motivo %}Motivo: {{ cambio.motivo }}{% endif %}
+          </p>
         </li>
       {% endfor %}
-    </ul>
+    </ol>
   </section>
 {% endif %}
 {% endblock %}

@@ -75,15 +75,29 @@ class ListaTests(DomiciliosVistasTests):
         self.assertContains(respuesta, '<span class="insignia insignia--verificado">Verificado</span>', html=True)
         self.assertContains(respuesta, '<span class="insignia insignia--pendiente">Pendiente de verificar</span>', html=True)
         self.assertContains(respuesta, '<span class="insignia insignia--sin_direccion">Sin dirección</span>', html=True)
-        self.assertContains(respuesta, "Sector Verde.")
-        self.assertContains(respuesta, "Camino a Dadinco km 4.")
+        self.assertContains(respuesta, "Camino a Dadinco km 4")
+        self.assertContains(respuesta, "Sin dirección registrada")
         self.assertContains(respuesta, "Postrado.")
         self.assertContains(respuesta, f"10.000.001-{rut_valido('10000001')[-1]}")
 
     def test_el_resumen_muestra_ig04_y_los_sin_direccion(self):
         respuesta = self.ver()
-        self.assertContains(respuesta, "<strong>1</strong> de 2 domicilios registrados (50 %)", html=False)
-        self.assertContains(respuesta, "<strong>1</strong> paciente por registrar", html=False)
+        self.assertContains(respuesta, "<strong>1</strong> de 2 domicilios verificados en terreno (50 %)", html=False)
+        self.assertContains(respuesta, 'style="width: 50%"')
+        self.assertContains(respuesta, "<strong>1</strong> paciente todavía sin dirección.", html=False)
+
+    def test_agrupa_por_sector_con_sus_verificados(self):
+        contenido = self.ver().content.decode()
+        verde, azul, sin_sector = (contenido.index(t) for t in ("Sector Verde", "Sector Azul", "Sin sector"))
+        self.assertLess(verde, contenido.index("Rosa Núñez"))
+        self.assertLess(contenido.index("Rosa Núñez"), azul)
+        self.assertLess(azul, contenido.index("Luis Pérez"))
+        self.assertLess(contenido.index("Luis Pérez"), sin_sector)
+        self.assertLess(sin_sector, contenido.index("Elsa Rojas"))
+        self.assertIn("1 de 1 verificado", contenido)
+        self.assertIn("0 de 1 verificados", contenido)
+        self.assertIn("1 sin dirección", contenido)
+        self.assertNotIn("Sector Rojo", contenido)  # sin pacientes, el grupo no aparece
 
     def test_filtra_por_sector_y_por_estado(self):
         contenido = self.ver(sector="azul").content.decode()

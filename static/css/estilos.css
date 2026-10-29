@@ -1428,9 +1428,63 @@ a { color: var(--primario-oscuro); }
 .preparacion__ventanilla { color: var(--texto-suave); font-size: 0.9375rem; font-weight: 600; }
 
 /* 17 · Domicilios
-   Pacientes con despacho a domicilio y el estado de su dirección (HU-12). Los filtros son enlaces
-   (van en la URL); el activo se marca con aria-current y con relleno, no solo con color. */
-.domicilios__resumen { margin-bottom: 1.75rem; }
+   Pacientes con despacho a domicilio y el estado de su dirección (HU-12). Se trabaja como se
+   reparte: la lista va agrupada por sector y cada fila empieza por la dirección. En la ficha, la
+   placa petróleo dice adónde ir (el mismo objeto que la placa de ventanilla de la sala) y va
+   montada sobre el mapa. Los filtros son enlaces (van en la URL); el activo se marca con
+   aria-current y con relleno, no solo con color. */
+
+/* Avance del indicador IG04: la meta es tener verificados todos los domicilios registrados. */
+.avance { margin: 0 0 1.75rem; }
+.avance__cifra { margin: 0 0 0.6rem; font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.avance__cifra strong { font-size: 1.5rem; font-weight: 800; }
+
+.avance__barra {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--gris-borde);
+  overflow: hidden;
+}
+
+.avance__barra span { display: block; height: 100%; border-radius: inherit; background: var(--primario); }
+.avance__nota { margin: 0.6rem 0 0; color: var(--texto-suave); }
+.domicilios__busqueda { margin: -0.75rem 0 1.5rem; color: var(--texto-suave); }
+
+/* Un grupo por sector, con cuántos lleva verificados. */
+.sector { margin-bottom: 2.25rem; }
+
+.sector__titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin: 0 0 0.6rem;
+  font-size: 1.25rem;
+}
+
+.sector__cuenta { color: var(--texto-suave); font-size: 0.9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* La fila entera lleva a la ficha: el enlace se estira sobre ella. Primero la dirección, que es
+   lo que se busca en terreno; debajo, quién vive ahí. */
+.lista--domicilios .lista__fila {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "enlace insignia" "detalle detalle";
+  row-gap: 0.15rem;
+}
+
+.lista--domicilios .lista__fila:hover { background: var(--primario-claro); }
+.lista--domicilios .lista__fila:focus-within { outline: 3px solid var(--primario); outline-offset: -3px; }
+.lista--domicilios .insignia { grid-area: insignia; justify-self: end; }
+
+.domicilio__enlace { display: flex; flex-direction: column; grid-area: enlace; min-width: 0; color: var(--texto); text-decoration: none; }
+.domicilio__enlace::after { content: ""; position: absolute; inset: 0; }
+.domicilio__enlace:focus-visible { outline: none; }
+.domicilio__direccion { font-size: 1.0625rem; font-weight: 700; overflow-wrap: anywhere; }
+.domicilio__paciente { color: var(--primario-oscuro); font-weight: 600; text-decoration: underline; text-underline-offset: 0.15em; }
+.domicilio__detalle { grid-area: detalle; margin: 0; color: var(--texto-suave); font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
 
 .filtros { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; margin: 0 0 1.75rem; }
 .filtros__grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
@@ -1452,22 +1506,99 @@ a { color: var(--primario-oscuro); }
 .filtros__opcion:hover { border-color: var(--primario); }
 .filtros__opcion[aria-current="true"] { background: var(--primario); border-color: var(--primario); color: #fff; }
 
-/* Ficha del domicilio: datos en dos columnas (etiqueta y valor), fotos en grilla y el historial
-   como lista. En un teléfono todo pasa a una columna: se usa en terreno. */
+/* Ficha del domicilio: a la izquierda, la placa sobre el mapa; a la derecha, cómo llegar y la
+   verificación. En un teléfono, todo en una columna y en ese orden: se usa en terreno. */
 .ficha__volver { margin: 0 0 1rem; font-size: 0.9375rem; }
 .ficha__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; }
-.ficha__datos { margin-bottom: 2.25rem; }
 
-.ficha__lista { display: grid; gap: 0.6rem; margin: 0; }
-.ficha__lista > div { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem; }
-.ficha__lista dt { color: var(--texto-suave); font-weight: 700; }
-.ficha__lista dd { margin: 0; overflow-wrap: anywhere; }
-.ficha__coordenadas { font-variant-numeric: tabular-nums; }
+.ficha {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1.5rem 2rem;
+  align-items: start;
+  margin-bottom: 2.5rem;
+}
+
+.ficha__vacia {
+  margin-bottom: 2.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ficha__vacia p { margin: 0 0 1rem; }
+
+.placa-domicilio {
+  padding: 1rem 1.25rem 1.1rem;
+  border-radius: 6px 6px 0 0;
+  background: var(--primario-oscuro);
+  color: #fff;
+}
+
+.placa-domicilio__sector { margin: 0 0 0.2rem; color: var(--acento); font-size: 0.9375rem; font-weight: 700; }
+.placa-domicilio__direccion { margin: 0; font-size: 1.625rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+
+.ficha__coordenadas { margin: 0.5rem 0 0; color: var(--texto-suave); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.ficha__como-llegar { margin-bottom: 1.5rem; }
+
+/* Las referencias son lo que el conductor lee al llegar: van grandes, con la línea del primario. */
+.referencias {
+  margin: 0;
+  padding: 0.2rem 0 0.2rem 1rem;
+  border-left: 4px solid var(--primario);
+  font-size: 1.1875rem;
+  line-height: 1.5;
+}
+
+.ficha__verificacion p { margin: 0 0 1rem; }
+.ficha__verificacion .ficha__acciones { margin-top: 0; }
+
+.ficha__verificacion .ficha__actualizado {
+  margin: 1.25rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--gris-borde);
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
 
 .ficha__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; margin-top: 1.5rem; }
 .ficha__acciones form { margin: 0; }
 .ficha__acciones .ayuda { flex-basis: 100%; margin: 0; }
-.ficha__pendiente { flex: 1 1 100%; max-width: 32rem; }
+.ficha__pendiente { flex: 1 1 100%; }
+
+/* «Marcar pendiente» plegado: el botón abre el motivo; abierto, el botón se esconde. */
+.ficha__desplegable { flex: 1 1 100%; }
+.ficha__desplegable > summary { list-style: none; cursor: pointer; }
+.ficha__desplegable > summary::-webkit-details-marker { display: none; }
+.ficha__desplegable[open] > summary { display: none; }
+
+/* Historial: una secuencia en el tiempo, del cambio más reciente al más antiguo. */
+.historial { margin: 0; padding: 0 0 0 0.35rem; list-style: none; }
+
+.historial__paso {
+  position: relative;
+  padding: 0 0 1.1rem 1.4rem;
+  border-left: 2px solid var(--gris-borde);
+}
+
+.historial__paso:last-child { padding-bottom: 0; border-left-color: transparent; }
+
+.historial__paso::before {
+  content: "";
+  position: absolute;
+  top: 0.35rem;
+  left: -0.45rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid var(--primario);
+  border-radius: 50%;
+  background: #fff;
+}
+
+.historial__paso:first-child::before { background: var(--primario); }
+.historial__accion { margin: 0; font-weight: 700; }
+.historial__detalle { margin: 0.1rem 0 0; color: var(--texto-suave); font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
 
 .ficha__formulario { max-width: 40rem; }
 .ficha__nota { margin: 0 0 1.25rem; }
@@ -1496,8 +1627,8 @@ a { color: var(--primario-oscuro); }
   object-fit: cover;
 }
 
-.fotos__pie { margin: 0; color: var(--texto-suave); font-size: 0.875rem; }
-.fotos__item form { margin: 0; }
+.fotos__pie { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; color: var(--texto-suave); font-size: 0.875rem; }
+.fotos__pie p, .fotos__item form { margin: 0; }
 .fotos__subir { max-width: 32rem; }
 
 /* Mapa del domicilio (Leaflet y OpenStreetMap). Es una ayuda: si no carga, queda el aviso y las
@@ -1513,12 +1644,21 @@ a { color: var(--primario-oscuro); }
 }
 
 .mapa__lienzo .leaflet-control-attribution { font-size: 0.75rem; }
+/* En la ficha, el mapa va pegado bajo la placa. */
+.mapa--ficha { margin-top: 0; }
+.mapa--ficha .mapa__lienzo { height: 22rem; border-top: none; border-radius: 0 0 6px 6px; }
 .mapa__aviso { margin: 0.5rem 0 0; }
 .ubicacion { margin: 0 0 0.5rem; }
 .ubicacion .ayuda:empty { display: none; }
 
+@media (max-width: 900px) {
+  .ficha { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 600px) {
-  .ficha__lista > div { grid-template-columns: 1fr; gap: 0.1rem; }
+  .lista--domicilios .lista__fila { grid-template-columns: 1fr; grid-template-areas: "enlace" "insignia" "detalle"; row-gap: 0.35rem; }
+  .lista--domicilios .insignia { justify-self: start; }
   .ficha__par { grid-template-columns: 1fr; }
-  .mapa__lienzo { height: 16rem; }
+  .mapa__lienzo, .mapa--ficha .mapa__lienzo { height: 16rem; }
+  .placa-domicilio__direccion { font-size: 1.3125rem; }
 }
